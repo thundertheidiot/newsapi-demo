@@ -1,4 +1,5 @@
 use crate::newsapi::response::EverythingResponse;
+use crate::ui::NewsAPI;
 use reqwest::header::HeaderValue;
 use reqwest::header::HeaderMap;
 
@@ -7,9 +8,15 @@ use crate::newsapi::NewsAPIError;
 use std::env;
 
 mod newsapi;
+mod ui;
 
-#[tokio::main]
-async fn main() -> Result<(), NewsAPIError> {
+fn main() -> iced::Result {
+    iced::run("NewsAPI Demo", NewsAPI::update, NewsAPI::view)
+    
+}
+
+// #[tokio::main]
+async fn demo() -> Result<(), NewsAPIError> {
     let token = env::var("NEWS_API_TOKEN").expect("$NEWS_API_TOKEN should be set.");
 
     let mut headers = HeaderMap::new();

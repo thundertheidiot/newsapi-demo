@@ -1,54 +1,69 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
     rust-overlay.url = "github:oxalica/rust-overlay";
     crane.url = "github:ipetkov/crane";
   };
 
-  outputs = {
-    nixpkgs,
-    rust-overlay,
-    crane,
-    ...
-  }: let
-    inherit (nixpkgs) lib;
+  outputs = inputs:
+    inputs.flake-parts.lib.mkFlake {inherit inputs;} {
+      systems = ["x86_64-linux"];
 
-    forAllSystems = fn:
-      lib.genAttrs lib.systems.flakeExposed
-      (system:
-        fn
-        (import nixpkgs {
-          inherit system;
-          overlays = [
-            (import rust-overlay)
-          ];
-        }));
-  in {
-    devShells = forAllSystems (pkgs: let
-      toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-    in {
-      default = pkgs.mkShell {
-        buildInputs = with pkgs; [toolchain pkg-config openssl cacert];
-      };
-    });
+      perSystem = {
+        pkgs,
+        lib,
+        system,
+        ...
+      }: (let
+        toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+        craneLib = (inputs.crane.mkLib pkgs).overrideToolchain toolchain;
 
-    packages = forAllSystems (pkgs: let
-      toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-      craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
+        cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
 
-      cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
-    in {
-      default = craneLib.buildPackage {
-        inherit (cargoToml.package) version;
-        pname = cargoToml.package.name;
-        src = ./.;
-
-        nativeBuildInputs = with pkgs; [
+        buildInputs = with pkgs; [
+          toolchain
           pkg-config
           openssl
           cacert
+          # expat
+          # fontconfig
+          # freetype
+          # freetype.dev
+          libGL
+          vulkan-loader
+          # xorg.libX11
+          # xorg.libXcursor
+          # xorg.libXi
+          # xorg.libXrandr
+          wayland
+          libxkbcommon
         ];
-      };
-    });
-  };
+      in {
+        _module.args = {
+          pkgs = import inputs.nixpkgs {
+            inherit system;
+            overlays = [
+              (import inputs.rust-overlay)
+            ];
+          };
+        };
+
+        devShells.default = pkgs.mkShell {
+          inherit buildInputs;
+          LD_LIBRARY_PATH =
+            builtins.foldl' (a: b: "${a}/${b}/lib") "${pkgs.vulkan-loader}/lib" buildInputs;
+
+          env.RUSTFLAGS = "-C link-arg=-Wl,-rpath,${lib.makeLibraryPath buildInputs}";
+        };
+
+        packages.default = craneLib.buildPackage {
+          inherit (cargoToml.package) version;
+          pname = cargoToml.package.name;
+          src = ./.;
+
+          inherit buildInputs;
+        };
+      });
+    };
 }

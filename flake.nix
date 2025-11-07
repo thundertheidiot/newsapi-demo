@@ -28,7 +28,7 @@
       toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
     in {
       default = pkgs.mkShell {
-        buildInputs = [toolchain];
+        buildInputs = with pkgs; [toolchain pkg-config openssl cacert];
       };
     });
 
@@ -42,6 +42,12 @@
         inherit (cargoToml.package) version;
         pname = cargoToml.package.name;
         src = ./.;
+
+        nativeBuildInputs = with pkgs; [
+          pkg-config
+          openssl
+          cacert
+        ];
       };
     });
   };

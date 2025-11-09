@@ -1,7 +1,11 @@
 use crate::TopHeadlinesResponse;
+use crate::fetch_top;
+use crate::newsapi::NewsAPISuccess;
 use crate::newsapi::article::Article;
+use crate::newsapi::search;
 use crate::ui::article::article_to_element;
 use iced::Alignment;
+use iced::color;
 use iced::widget::Row;
 use std::time::Duration;
 
@@ -27,6 +31,7 @@ pub struct MainPage {
     client: Client,
     search_query: String,
     text: Option<String>,
+    search_result: Option<Result<NewsAPISuccess, String>>,
     articles: Vec<Article>,
 }
 
@@ -34,7 +39,7 @@ pub struct MainPage {
 pub enum MainPageMessage {
     SearchBarOnInput(String),
     SearchSubmit,
-    SearchComplete(Result<TopHeadlinesResponse, String>),
+    SearchComplete(Result<NewsAPISuccess, String>),
 }
 
 impl MainPage {
@@ -52,6 +57,7 @@ impl MainPage {
             search_query: String::new(),
             text: None,
             articles: Vec::new(),
+            search_result: None,
         })
     }
 }
@@ -60,6 +66,21 @@ impl Page for MainPage {
     fn view(&self) -> Element<'_, Message> {
         use MainPageMessage::*;
         use Message::MainPage as M;
+
+        let article_view: Element<'_, Message> = match &self.search_result {
+            Some(v) => match v {
+                Ok(resp) => Column::with_children(resp.articles.chunks(3).map(|chunk| {
+                    Into::<Element<'_, Message>>::into(
+                        Row::with_children(chunk.iter().map(article_to_element))
+                            .spacing(10)
+                            .align_y(Alignment::Center),
+                    )
+                }))
+                .into(),
+                Err(e) => text(e).color(color!(0xff0000)).into(),
+            },
+            None => Space::with_width(0).into(),
+        };
 
         column![
             row![
@@ -71,18 +92,7 @@ impl Page for MainPage {
             ]
             .spacing(5)
             .padding(15),
-            scrollable(
-                Column::with_children(self.articles.chunks(3).map(|chunk| {
-                    Into::<Element<'_, Message>>::into(
-                        Row::with_children(chunk.into_iter().map(article_to_element))
-                            .spacing(10)
-                            .align_y(Alignment::Center),
-                    )
-                }))
-                .spacing(15)
-                .padding(10)
-                .align_x(Alignment::Center)
-            )
+            scrollable(article_view)
         ]
         .spacing(10)
         .into()
@@ -101,39 +111,16 @@ impl Page for MainPage {
 
                     return Action::Task(Task::perform(
                         async move {
-                            /// This function exists to group up all the possible errors, so they can be handled at once
-                            async fn fallible(
-                                client: &Client,
-                                query: &str,
-                            ) -> Result<TopHeadlinesResponse, NewsAPIError>
-                            {
-                                Ok(match query {
-                                    "" => client
-                                        .get("https://newsapi.org/v2/top-headlines")
-                                        .query(&[("category", "general")])
-                                        .send(),
-                                    s => client
-                                        .get("https://newsapi.org/v2/top-headlines")
-                                        .query(&[("q", s)])
-                                        .send(),
-                                }
-                                .await?
-                                .json::<TopHeadlinesResponse>()
-                                .await?)
+                            match query.as_str() {
+                                "" => fetch_top(&client).await,
+                                query => search(&client, query).await,
                             }
-
-                            fallible(&client, &query).await.map_err(|e| e.to_string())
+                            .map_err(|e| e.to_string())
                         },
                         |v| M(SearchComplete(v)),
                     ));
                 }
-                SearchComplete(v) => match v {
-                    Ok(v) => {
-                        println!("yea");
-                        self.articles = v.articles;
-                    }
-                    Err(e) => self.text = Some(e),
-                },
+                SearchComplete(v) => self.search_result = Some(v),
             }
         }
 

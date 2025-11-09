@@ -9,7 +9,7 @@ use iced::{Length, Theme};
 pub fn article_to_element<'a>(article: &'a Article) -> Element<'a, Message> {
     let description = match &article.description {
         Some(v) => v.as_str(),
-        None => "ligm",
+        None => "placeholder",
     };
 
     Button::new(

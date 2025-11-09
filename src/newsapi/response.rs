@@ -14,7 +14,7 @@ pub struct TopHeadlinesResponse {
 /// Response of the `everything` endpoint
 #[derive(Debug, Deserialize, Clone)]
 pub struct EverythingResponse {
-    pub status: Option<String>,
+    pub status: String,
     #[serde(rename(deserialize = "totalResults"))]
     pub total_results: Option<i32>,
     pub articles: Vec<Article>,

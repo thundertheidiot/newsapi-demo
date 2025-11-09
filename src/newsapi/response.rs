@@ -3,7 +3,7 @@ use reqwest::RequestBuilder;
 use serde::Deserialize;
 
 /// Response of the `top-headlines` endpoint
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct TopHeadlinesResponse {
     pub status: Option<String>,
     #[serde(rename(deserialize = "totalResults"))]
@@ -12,7 +12,7 @@ pub struct TopHeadlinesResponse {
 }
 
 /// Response of the `everything` endpoint
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct EverythingResponse {
     pub status: Option<String>,
     #[serde(rename(deserialize = "totalResults"))]

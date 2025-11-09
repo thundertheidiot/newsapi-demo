@@ -1,5 +1,5 @@
 use crate::newsapi::response::EverythingResponse;
-use crate::ui::NewsAPI;
+use crate::ui::App;
 use reqwest::header::HeaderValue;
 use reqwest::header::HeaderMap;
 
@@ -11,8 +11,7 @@ mod newsapi;
 mod ui;
 
 fn main() -> iced::Result {
-    iced::run("NewsAPI Demo", NewsAPI::update, NewsAPI::view)
-    
+    iced::application("NewsAPI Demo", App::update, App::view).run_with(App::new)
 }
 
 // #[tokio::main]

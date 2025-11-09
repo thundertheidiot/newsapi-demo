@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 /// A representation of the `source` object in the article responses
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ArticleSource {
     /// Id for the source of the article
     pub id: Option<String>,
@@ -9,11 +9,11 @@ pub struct ArticleSource {
     pub name: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Article {
     pub source: ArticleSource,
     pub author: Option<String>,
-    pub title: Option<String>,
+    pub title: String,
     pub description: Option<String>,
     pub url: Option<String>,
     #[serde(rename(deserialize = "urlToImage"))]

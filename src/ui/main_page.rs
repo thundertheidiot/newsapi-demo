@@ -3,10 +3,12 @@ use crate::fetch_top;
 use crate::newsapi::NewsAPISuccess;
 use crate::newsapi::article::Article;
 use crate::newsapi::search;
-use crate::ui::article::article_to_element;
+use crate::ui::article::article_to_card;
 use iced::Alignment;
 use iced::color;
 use iced::widget::Row;
+use iced::widget::Stack;
+use iced::widget::container;
 use std::time::Duration;
 
 use crate::newsapi::NewsAPIError;
@@ -30,9 +32,9 @@ use reqwest::header::HeaderValue;
 pub struct MainPage {
     client: Client,
     search_query: String,
-    text: Option<String>,
     search_result: Option<Result<NewsAPISuccess, String>>,
-    articles: Vec<Article>,
+    images_loaded: Vec<usize>,
+    active_article: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -40,6 +42,8 @@ pub enum MainPageMessage {
     SearchBarOnInput(String),
     SearchSubmit,
     SearchComplete(Result<NewsAPISuccess, String>),
+    ImageLoaded(usize),
+    ActiveArticle(usize),
 }
 
 impl MainPage {
@@ -55,9 +59,9 @@ impl MainPage {
         Ok(Self {
             client: client,
             search_query: String::new(),
-            text: None,
-            articles: Vec::new(),
             search_result: None,
+            active_article: None,
+            images_loaded: Vec::new(),
         })
     }
 }
@@ -67,20 +71,44 @@ impl Page for MainPage {
         use MainPageMessage::*;
         use Message::MainPage as M;
 
+        let mut items: Vec<Element<'_, Message>> = Vec::new();
+
         let article_view: Element<'_, Message> = match &self.search_result {
             Some(v) => match v {
-                Ok(resp) => Column::with_children(resp.articles.chunks(3).map(|chunk| {
-                    Into::<Element<'_, Message>>::into(
-                        Row::with_children(chunk.iter().map(article_to_element))
-                            .spacing(10)
-                            .align_y(Alignment::Center),
-                    )
-                }))
+                Ok(resp) => Column::with_children(
+                    resp.articles
+                        .iter()
+                        .enumerate()
+                        .collect::<Vec<(usize, &Article)>>()
+                        .chunks(3)
+                        .map(|chunk| {
+                            Into::<Element<'_, Message>>::into(
+                                Row::with_children(
+                                    // TODO: optimize this
+                                    // usize gets copied through the dereference
+                                    chunk.into_iter().map(|(i, a)| article_to_card(*i, a)),
+                                )
+                                .spacing(10)
+                                .align_y(Alignment::Center),
+                            )
+                        }),
+                )
                 .into(),
-                Err(e) => text(e).color(color!(0xff0000)).into(),
+                Err(e) => container(text(e).color(color!(0xff0000)).size(24))
+                    .padding(15)
+                    .into(),
             },
             None => Space::with_width(0).into(),
         };
+
+        items.push(scrollable(article_view).into());
+
+        if let (Some(index), Some(Ok(data))) = (self.active_article, &self.search_result) {
+            match &data.articles[index].content {
+                Some(v) => items.push(text(v).into()),
+                None => items.push(text("meow :3").into()),
+            }
+        }
 
         column![
             row![
@@ -92,7 +120,7 @@ impl Page for MainPage {
             ]
             .spacing(5)
             .padding(15),
-            scrollable(article_view)
+            Stack::from_vec(items)
         ]
         .spacing(10)
         .into()
@@ -120,7 +148,19 @@ impl Page for MainPage {
                         |v| M(SearchComplete(v)),
                     ));
                 }
-                SearchComplete(v) => self.search_result = Some(v),
+                SearchComplete(v) => {
+                    self.active_article = None;
+                    if let Ok(data) = &v {
+                        self.images_loaded = Vec::with_capacity(data.articles.len());
+                    }
+
+                    self.search_result = Some(v)
+                }
+                ActiveArticle(index) => {
+                    self.active_article = Some(index);
+                    println!("clicked on {index}");
+                }
+                _ => (),
             }
         }
 

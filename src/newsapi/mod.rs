@@ -25,6 +25,8 @@ pub enum NewsAPIError {
     /// Error while parsing the JSON response body.
     #[error("Failed to parse JSON response: {0}")]
     Serde(#[from] serde_json::Error),
+    #[error("IO Error: {0:?}")]
+    IO(#[from] std::io::Error),
     #[error("Invalid Header Value")]
     HeaderValue(#[from] reqwest::header::InvalidHeaderValue),
 }

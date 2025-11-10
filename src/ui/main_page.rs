@@ -4,8 +4,10 @@ use crate::newsapi::NewsAPISuccess;
 use crate::newsapi::article::Article;
 use crate::newsapi::search;
 use crate::ui::article::article_to_card;
+use crate::ui::article::download_image;
 use iced::Alignment;
 use iced::color;
+use iced::futures::SinkExt;
 use iced::widget::Row;
 use iced::widget::Stack;
 use iced::widget::container;
@@ -42,7 +44,7 @@ pub enum MainPageMessage {
     SearchBarOnInput(String),
     SearchSubmit,
     SearchComplete(Result<NewsAPISuccess, String>),
-    ImageLoaded(usize),
+    ImageLoaded(Option<usize>),
     ActiveArticle(usize),
 }
 
@@ -86,7 +88,9 @@ impl Page for MainPage {
                                 Row::with_children(
                                     // TODO: optimize this
                                     // usize gets copied through the dereference
-                                    chunk.into_iter().map(|(i, a)| article_to_card(*i, a)),
+                                    chunk.into_iter().map(|(i, a)| {
+                                        article_to_card(*i, a, self.images_loaded.contains(i))
+                                    }),
                                 )
                                 .spacing(10)
                                 .align_y(Alignment::Center),
@@ -150,11 +154,39 @@ impl Page for MainPage {
                 }
                 SearchComplete(v) => {
                     self.active_article = None;
+                    let mut tasks: Task<Message> = Task::none();
+
                     if let Ok(data) = &v {
                         self.images_loaded = Vec::with_capacity(data.articles.len());
+
+                        tasks =
+                            Task::batch(data.articles.iter().enumerate().map(|(i, article)| {
+                                if let Some(url) = &article.url_to_image {
+                                    let url = url.clone();
+                                    Task::perform(
+                                        async move {
+                                            match download_image(&url).await {
+                                                Ok(_) => Some(i),
+                                                Err(_) => None,
+                                            }
+                                        },
+                                        |status| M(ImageLoaded(status)),
+                                    )
+                                } else {
+                                    Task::none()
+                                }
+                            }));
                     }
 
-                    self.search_result = Some(v)
+                    self.search_result = Some(v);
+                    return Action::Task(tasks);
+                }
+                ImageLoaded(index) => {
+                    println!("image loaded signal");
+                    if let Some(index) = index {
+                        println!("fun");
+                        self.images_loaded.push(index);
+                    }
                 }
                 ActiveArticle(index) => {
                     self.active_article = Some(index);

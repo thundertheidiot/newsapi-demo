@@ -1,3 +1,4 @@
+use iced::advanced::image::Bytes;
 use iced::widget::Column;
 use iced::widget::Image;
 use iced::widget::image::Handle;
@@ -8,6 +9,7 @@ use std::fs::{create_dir, write};
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::Path;
 use std::path::PathBuf;
+use std::task;
 
 use crate::newsapi::NewsAPIError;
 use crate::newsapi::article::Article;
@@ -52,7 +54,7 @@ pub fn url_to_path(url: &str) -> PathBuf {
     tmpdir().join(hex)
 }
 
-pub async fn download_image(url: &str) -> Result<(), NewsAPIError> {
+pub async fn download_image(url: &str) -> Result<Bytes, NewsAPIError> {
     match create_dir(tmpdir()) {
         Ok(()) => (),
         Err(e) => match e.kind() {
@@ -63,10 +65,22 @@ pub async fn download_image(url: &str) -> Result<(), NewsAPIError> {
 
     let path = url_to_path(url);
 
-    if !path.exists() {
-        let bytes = reqwest::get(url).await?.bytes().await?;
-        let _ = write(path, bytes)?;
-    }
+    Ok(match path.exists() {
+        true => tokio::fs::read(path).await?.into(),
+        false => {
+            let bytes = reqwest::get(url).await?.bytes().await?;
 
-    Ok(())
+            // Shallow clone, bytes does not own the data
+            let bytes_clone = bytes.clone();
+
+            // background task to write to disk
+            tokio::task::spawn(async move {
+                if let Err(e) = tokio::fs::write(path, bytes_clone).await {
+                    eprintln!("Failed to cache image: {e:?}");
+                }
+            });
+
+            bytes
+        }
+    })
 }

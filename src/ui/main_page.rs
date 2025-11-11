@@ -47,6 +47,7 @@ pub enum MainPageMessage {
     SearchBarOnInput(String),
     SearchSubmit,
     SearchComplete(Result<NewsAPISuccess, String>),
+    // Handle is a reference to bytes, doesn't own the data
     ImageLoaded(Option<(usize, Handle)>),
     ActiveArticle(usize),
 }
@@ -170,25 +171,15 @@ impl Page for MainPage {
                                     let url = url.clone();
                                     Task::perform(
                                         async move {
-                                            let path = url_to_path(&url);
                                             match download_image(&url).await {
-                                                Ok(()) => match std::fs::read(path) {
-                                                    Ok(bytes) => {
-                                                        // from_path doesn't work
-                                                        Some((i, Handle::from_bytes(bytes)))
-                                                    }
-                                                    Err(e) => {
-                                                        eprintln!("Error loading image: {e:#?}");
-                                                        None
-                                                    }
-                                                },
+                                                Ok(bytes) => Some((i, Handle::from_bytes(bytes))),
                                                 Err(e) => {
                                                     eprintln!("Error download image: {e:#?}");
                                                     None
                                                 }
                                             }
                                         },
-                                        |status| M(ImageLoaded(status)),
+                                        |data| M(ImageLoaded(data)),
                                     )
                                 } else {
                                     Task::none()
@@ -201,6 +192,7 @@ impl Page for MainPage {
                 }
                 ImageLoaded(data) => {
                     if let Some((i, handle)) = data {
+                        // images_loaded is resized to article amount above, this should be safe
                         self.images_loaded[i] = Some(handle);
                     }
                 }

@@ -40,12 +40,11 @@ pub fn article_to_card<'a>(
     .into()
 }
 
-// create_dir(&dir);
 fn tmpdir() -> PathBuf {
     temp_dir().join("newsapi_demo")
 }
 
-pub fn url_to_path(url: &str) -> PathBuf {
+fn url_to_path(url: &str) -> PathBuf {
     let mut hasher = Sha256::new();
     hasher.update(url);
     let hash = hasher.finalize();
@@ -54,7 +53,7 @@ pub fn url_to_path(url: &str) -> PathBuf {
     tmpdir().join(hex)
 }
 
-pub async fn download_image(url: &str) -> Result<Bytes, NewsAPIError> {
+pub async fn get_image_from_url(url: &str) -> Result<Bytes, NewsAPIError> {
     match create_dir(tmpdir()) {
         Ok(()) => (),
         Err(e) => match e.kind() {

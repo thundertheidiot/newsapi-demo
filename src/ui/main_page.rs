@@ -4,8 +4,7 @@ use crate::newsapi::NewsAPISuccess;
 use crate::newsapi::article::Article;
 use crate::newsapi::search;
 use crate::ui::article::article_to_card;
-use crate::ui::article::download_image;
-use crate::ui::article::url_to_path;
+use crate::ui::article::get_image_from_url;
 use iced::Alignment;
 use iced::color;
 use iced::futures::SinkExt;
@@ -167,22 +166,26 @@ impl Page for MainPage {
 
                         tasks =
                             Task::batch(data.articles.iter().enumerate().map(|(i, article)| {
-                                if let Some(url) = &article.url_to_image {
-                                    let url = url.clone();
-                                    Task::perform(
-                                        async move {
-                                            match download_image(&url).await {
-                                                Ok(bytes) => Some((i, Handle::from_bytes(bytes))),
-                                                Err(e) => {
-                                                    eprintln!("Error download image: {e:#?}");
-                                                    None
+                                match &article.url_to_image {
+                                    Some(url) => {
+                                        // gets passed to separate task
+                                        let url = url.to_owned();
+                                        Task::perform(
+                                            async move {
+                                                match get_image_from_url(&url).await {
+                                                    Ok(bytes) => {
+                                                        Some((i, Handle::from_bytes(bytes)))
+                                                    }
+                                                    Err(e) => {
+                                                        eprintln!("Error getting image: {e:#?}");
+                                                        None
+                                                    }
                                                 }
-                                            }
-                                        },
-                                        |data| M(ImageLoaded(data)),
-                                    )
-                                } else {
-                                    Task::none()
+                                            },
+                                            |data| M(ImageLoaded(data)),
+                                        )
+                                    }
+                                    None => Task::none(),
                                 }
                             }));
                     }

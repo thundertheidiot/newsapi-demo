@@ -178,30 +178,7 @@ impl Page for MainPage {
                     if let Ok(data) = &v {
                         self.images_loaded.resize(data.articles.len(), None);
 
-                        tasks =
-                            Task::batch(data.articles.iter().enumerate().map(|(i, article)| {
-                                match &article.url_to_image {
-                                    Some(url) => {
-                                        // gets passed to separate task
-                                        let url = url.to_owned();
-                                        Task::perform(
-                                            async move {
-                                                match get_image_from_url(&url).await {
-                                                    Ok(bytes) => {
-                                                        Some((i, Handle::from_bytes(bytes)))
-                                                    }
-                                                    Err(e) => {
-                                                        eprintln!("Error getting image: {e:#?}");
-                                                        None
-                                                    }
-                                                }
-                                            },
-                                            |data| M(ImageLoaded(data)),
-                                        )
-                                    }
-                                    None => Task::none(),
-                                }
-                            }));
+                        tasks = Task::batch(data.articles.iter().enumerate().map(image_task));
                     }
 
                     self.search_result = Some(v);
@@ -221,5 +198,29 @@ impl Page for MainPage {
         }
 
         Action::None
+    }
+}
+
+fn image_task(input: (usize, &Article)) -> Task<Message> {
+    let (index, article) = input;
+
+    match &article.url_to_image {
+        Some(url) => {
+            let url = url.to_owned();
+
+            Task::perform(
+                async move {
+                    match get_image_from_url(&url).await {
+                        Ok(bytes) => Some((index, Handle::from_bytes(bytes))),
+                        Err(e) => {
+                            eprintln!("Error getting image: {e:#?}");
+                            None
+                        }
+                    }
+                },
+                |data| Message::MainPage(MainPageMessage::ImageLoaded(data)),
+            )
+        }
+        None => Task::none(),
     }
 }

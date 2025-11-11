@@ -11,6 +11,7 @@ use iced::futures::SinkExt;
 use iced::widget::Row;
 use iced::widget::Stack;
 use iced::widget::container;
+use iced::widget::image;
 use std::time::Duration;
 
 use crate::newsapi::NewsAPIError;
@@ -120,7 +121,7 @@ impl Page for MainPage {
                     .on_input(|s| M(SearchBarOnInput(s)))
                     .on_submit(M(SearchSubmit))
                     .size(24),
-                button("Submit").on_press(M(SearchSubmit)).padding(10)
+                button("Submit").on_press(M(SearchSubmit)).padding(10),
             ]
             .spacing(5)
             .padding(15),
@@ -166,8 +167,11 @@ impl Page for MainPage {
                                     Task::perform(
                                         async move {
                                             match download_image(&url).await {
-                                                Ok(_) => Some(i),
-                                                Err(_) => None,
+                                                Ok(()) => Some(i),
+                                                Err(e) => {
+                                                    eprintln!("{e:#?}");
+                                                    None
+                                                }
                                             }
                                         },
                                         |status| M(ImageLoaded(status)),

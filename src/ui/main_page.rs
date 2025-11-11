@@ -5,6 +5,7 @@ use crate::newsapi::article::Article;
 use crate::newsapi::search;
 use crate::ui::article::article_to_card;
 use crate::ui::article::download_image;
+use crate::ui::article::url_to_path;
 use iced::Alignment;
 use iced::color;
 use iced::futures::SinkExt;
@@ -12,6 +13,7 @@ use iced::widget::Row;
 use iced::widget::Stack;
 use iced::widget::container;
 use iced::widget::image;
+use iced::widget::image::Handle;
 use std::time::Duration;
 
 use crate::newsapi::NewsAPIError;
@@ -36,7 +38,7 @@ pub struct MainPage {
     client: Client,
     search_query: String,
     search_result: Option<Result<NewsAPISuccess, String>>,
-    images_loaded: Vec<usize>,
+    images_loaded: Vec<Option<Handle>>,
     active_article: Option<usize>,
 }
 
@@ -45,7 +47,7 @@ pub enum MainPageMessage {
     SearchBarOnInput(String),
     SearchSubmit,
     SearchComplete(Result<NewsAPISuccess, String>),
-    ImageLoaded(Option<usize>),
+    ImageLoaded(Option<(usize, Handle)>),
     ActiveArticle(usize),
 }
 
@@ -90,7 +92,7 @@ impl Page for MainPage {
                                     // TODO: optimize this
                                     // usize gets copied through the dereference
                                     chunk.into_iter().map(|(i, a)| {
-                                        article_to_card(*i, a, self.images_loaded.contains(i))
+                                        article_to_card(*i, a, &self.images_loaded[*i])
                                     }),
                                 )
                                 .spacing(10)
@@ -157,8 +159,10 @@ impl Page for MainPage {
                     self.active_article = None;
                     let mut tasks: Task<Message> = Task::none();
 
+                    self.images_loaded = Vec::new();
+
                     if let Ok(data) = &v {
-                        self.images_loaded = Vec::with_capacity(data.articles.len());
+                        self.images_loaded.resize(data.articles.len(), None);
 
                         tasks =
                             Task::batch(data.articles.iter().enumerate().map(|(i, article)| {
@@ -166,10 +170,20 @@ impl Page for MainPage {
                                     let url = url.clone();
                                     Task::perform(
                                         async move {
+                                            let path = url_to_path(&url);
                                             match download_image(&url).await {
-                                                Ok(()) => Some(i),
+                                                Ok(()) => match std::fs::read(path) {
+                                                    Ok(bytes) => {
+                                                        // from_path doesn't work
+                                                        Some((i, Handle::from_bytes(bytes)))
+                                                    }
+                                                    Err(e) => {
+                                                        eprintln!("Error loading image: {e:#?}");
+                                                        None
+                                                    }
+                                                },
                                                 Err(e) => {
-                                                    eprintln!("{e:#?}");
+                                                    eprintln!("Error download image: {e:#?}");
                                                     None
                                                 }
                                             }
@@ -185,11 +199,9 @@ impl Page for MainPage {
                     self.search_result = Some(v);
                     return Action::Task(tasks);
                 }
-                ImageLoaded(index) => {
-                    println!("image loaded signal");
-                    if let Some(index) = index {
-                        println!("fun");
-                        self.images_loaded.push(index);
+                ImageLoaded(data) => {
+                    if let Some((i, handle)) = data {
+                        self.images_loaded[i] = Some(handle);
                     }
                 }
                 ActiveArticle(index) => {

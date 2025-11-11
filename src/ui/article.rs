@@ -22,25 +22,13 @@ use iced::{Length, Theme};
 pub fn article_to_card<'a>(
     index: usize,
     article: &'a Article,
-    image_loaded: bool,
+    image: &Option<Handle>,
 ) -> Element<'a, Message> {
     let content: Column<'_, Message> = Column::with_capacity(2)
         .push(text(&article.title).size(24))
-        .push_maybe(match (image_loaded, &article.url_to_image) {
-            (true, Some(url)) => {
-                let path = url_to_path(&url);
-                match std::fs::read(path) {
-                    Ok(bytes) => {
-                        let handle = Handle::from_bytes(bytes);
-                        Some(Image::new(handle))
-                    }
-                    Err(e) => {
-                        eprintln!("Error loading image data: {e:#?}");
-                        None
-                    }
-                }
-            }
-            _ => None,
+        .push_maybe(match image {
+            Some(handle) => Some(Image::new(handle)),
+            None => None,
         });
 
     Button::new(
@@ -55,13 +43,11 @@ fn tmpdir() -> PathBuf {
     temp_dir().join("newsapi_demo")
 }
 
-fn url_to_path(url: &str) -> PathBuf {
+pub fn url_to_path(url: &str) -> PathBuf {
     let mut hasher = Sha256::new();
     hasher.update(url);
     let hash = hasher.finalize();
     let hex = hex::encode(&hash[..8]);
-
-    println!("{}", &hex);
 
     tmpdir().join(hex)
 }
@@ -75,16 +61,12 @@ pub async fn download_image(url: &str) -> Result<(), NewsAPIError> {
         },
     };
 
-    println!("{url} download started");
-
-    let bytes = reqwest::get(url).await?.bytes().await?;
-
     let path = url_to_path(url);
-    println!("{path:?}");
 
-    let _ = write(path, bytes)?;
-
-    println!("finished");
+    if !path.exists() {
+        let bytes = reqwest::get(url).await?.bytes().await?;
+        let _ = write(path, bytes)?;
+    }
 
     Ok(())
 }

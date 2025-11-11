@@ -3,6 +3,7 @@ use crate::ui::token_page::TokenPage;
 use crate::ui::token_page::TokenPageMessage;
 use iced::Element;
 use iced::Task;
+use iced::widget::text_input::focus;
 
 mod article;
 mod main_page;
@@ -30,13 +31,16 @@ pub struct App {
     page: Box<dyn Page>,
 }
 
+pub const TOKEN_INPUT_ID: &'static str = "token_input_box";
+
 impl App {
     pub fn new() -> (Self, Task<Message>) {
         (
             Self {
                 page: Box::new(TokenPage::new()),
             },
-            Task::none(),
+            // stating task
+            focus(TOKEN_INPUT_ID),
         )
     }
 

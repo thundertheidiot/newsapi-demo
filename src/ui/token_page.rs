@@ -1,12 +1,15 @@
+use std::env::var;
+
 use crate::newsapi::NewsAPIError;
-use crate::ui::main_page::MainPage;
 use crate::ui::Action;
 use crate::ui::Message;
 use crate::ui::Page;
-use iced::widget::button;
-use iced::widget::Space;
-use iced::widget::{column, row, text, text_input};
+use crate::ui::TOKEN_INPUT_ID;
+use crate::ui::main_page::MainPage;
 use iced::Element;
+use iced::widget::Space;
+use iced::widget::button;
+use iced::widget::{column, row, text, text_input};
 
 #[derive(Default)]
 pub struct TokenPage {
@@ -22,8 +25,13 @@ pub enum TokenPageMessage {
 
 impl TokenPage {
     pub fn new() -> Self {
+        let token = match var("NEWS_API_TOKEN") {
+            Ok(var) => var,
+            Err(_) => String::new(),
+        };
+
         Self {
-            token: String::new(),
+            token: token,
             error: None,
         }
     }
@@ -38,6 +46,7 @@ impl Page for TokenPage {
             text_input("NewsAPI Token", &self.token)
                 .on_input(|s| T(OnInput(s)))
                 .on_submit(T(Submit))
+                .id(TOKEN_INPUT_ID)
                 .size(24),
             button("Submit").on_press(T(Submit)).padding(10),
         ]

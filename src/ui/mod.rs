@@ -17,6 +17,7 @@ trait Page {
 pub enum Message {
     TokenPage(TokenPageMessage),
     MainPage(MainPageMessage),
+    OpenLink(String),
 }
 
 pub enum Action {
@@ -41,6 +42,13 @@ impl App {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         use Action::*;
+
+        if let Message::OpenLink(link) = message {
+            if let Err(error) = open::that(&link) {
+                eprintln!("Error opening link: {error:?}");
+            }
+            return iced::Task::none();
+        }
 
         match self.page.update(message) {
             SwitchPage(page) => {

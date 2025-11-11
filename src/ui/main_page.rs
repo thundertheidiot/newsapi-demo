@@ -4,12 +4,14 @@ use crate::newsapi::NewsAPISuccess;
 use crate::newsapi::article::Article;
 use crate::newsapi::search;
 use crate::ui::article::article_to_card;
+use crate::ui::article::article_view;
 use crate::ui::article::get_image_from_url;
 use iced::Alignment;
 use iced::color;
 use iced::futures::SinkExt;
 use iced::widget::Row;
 use iced::widget::Stack;
+use iced::widget::button::Style;
 use iced::widget::container;
 use iced::widget::image;
 use iced::widget::image::Handle;
@@ -48,7 +50,7 @@ pub enum MainPageMessage {
     SearchComplete(Result<NewsAPISuccess, String>),
     // Handle is a reference to bytes, doesn't own the data
     ImageLoaded(Option<(usize, Handle)>),
-    ActiveArticle(usize),
+    ActiveArticle(Option<usize>),
 }
 
 impl MainPage {
@@ -76,46 +78,58 @@ impl Page for MainPage {
         use MainPageMessage::*;
         use Message::MainPage as M;
 
-        let mut items: Vec<Element<'_, Message>> = Vec::new();
-
-        let article_view: Element<'_, Message> = match &self.search_result {
-            Some(v) => match v {
-                Ok(resp) => Column::with_children(
-                    resp.articles
-                        .iter()
-                        .enumerate()
-                        .collect::<Vec<(usize, &Article)>>()
-                        .chunks(3)
-                        .map(|chunk| {
-                            Into::<Element<'_, Message>>::into(
-                                Row::with_children(
-                                    // TODO: optimize this
-                                    // usize gets copied through the dereference
-                                    chunk.into_iter().map(|(i, a)| {
-                                        article_to_card(*i, a, &self.images_loaded[*i])
-                                    }),
+        let stack: Stack<'_, Message> = Stack::with_capacity(2)
+            .push_maybe(match &self.search_result {
+                Some(Ok(data)) => Some::<Element<'_, Message>>(
+                    scrollable(Column::with_children(
+                        data.articles
+                            .iter()
+                            .enumerate()
+                            .collect::<Vec<(usize, &Article)>>()
+                            .chunks(3)
+                            .map(|chunk| {
+                                Into::<Element<'_, Message>>::into(
+                                    Row::with_children(
+                                        // TODO: optimize this
+                                        // usize gets copied through the dereference
+                                        chunk.into_iter().map(|(i, a)| {
+                                            article_to_card(*i, a, &self.images_loaded[*i])
+                                        }),
+                                    )
+                                    .spacing(10)
+                                    .align_y(Alignment::Center),
                                 )
-                                .spacing(10)
-                                .align_y(Alignment::Center),
-                            )
-                        }),
-                )
-                .into(),
-                Err(e) => container(text(e).color(color!(0xff0000)).size(24))
-                    .padding(15)
+                            }),
+                    ))
                     .into(),
-            },
-            None => Space::with_width(0).into(),
-        };
-
-        items.push(scrollable(article_view).into());
-
-        if let (Some(index), Some(Ok(data))) = (self.active_article, &self.search_result) {
-            match &data.articles[index].content {
-                Some(v) => items.push(text(v).into()),
-                None => items.push(text("meow :3").into()),
-            }
-        }
+                ),
+                Some(Err(error)) => Some(
+                    container(text(error).color(color!(0xff0000)).size(32))
+                        .padding(15)
+                        .into(),
+                ),
+                _ => None,
+            })
+            .push_maybe(match (self.active_article, &self.search_result) {
+                (Some(index), Some(Ok(data))) => Some(
+                    button(
+                        container(article_view(
+                            &data.articles[index],
+                            &self.images_loaded[index],
+                        ))
+                        .padding(20),
+                    )
+                    .padding(0)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .style(|_theme, _status| Style {
+                        background: None,
+                        ..Default::default()
+                    })
+                    .on_press(M(ActiveArticle(None))),
+                ),
+                _ => None,
+            });
 
         column![
             row![
@@ -127,7 +141,7 @@ impl Page for MainPage {
             ]
             .spacing(5)
             .padding(15),
-            Stack::from_vec(items)
+            stack
         ]
         .spacing(10)
         .into()
@@ -200,8 +214,7 @@ impl Page for MainPage {
                     }
                 }
                 ActiveArticle(index) => {
-                    self.active_article = Some(index);
-                    println!("clicked on {index}");
+                    self.active_article = index;
                 }
                 _ => (),
             }

@@ -1,6 +1,14 @@
+use iced::Alignment;
+use iced::Background;
+use iced::Border;
+use iced::Length::FillPortion;
+use iced::Length::Shrink;
 use iced::advanced::image::Bytes;
+use iced::color;
 use iced::widget::Column;
+use iced::widget::Container;
 use iced::widget::Image;
+use iced::widget::button;
 use iced::widget::image::Handle;
 use sha2::Digest;
 use sha2::Sha256;
@@ -36,7 +44,52 @@ pub fn article_to_card<'a>(
     Button::new(
         container(content.spacing(5)).width(Length::FillPortion(1)), // .max_height(200),
     )
-    .on_press(Message::MainPage(MainPageMessage::ActiveArticle(index)))
+    .on_press(Message::MainPage(MainPageMessage::ActiveArticle(Some(
+        index,
+    ))))
+    .into()
+}
+
+pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element<'a, Message> {
+    container(
+        Column::<Message, Theme>::with_capacity(6)
+            .push(text(&article.title).size(44))
+            .push_maybe(match &article.url {
+                Some(url) => Some(button("open").on_press(Message::OpenLink(url.clone()))),
+                None => None,
+            })
+            .push_maybe(match &article.description {
+                Some(description) => Some(text(description).size(32)),
+                None => None,
+            })
+            .push_maybe(match (&article.author, &article.source.name) {
+                (Some(author), Some(source)) => Some(text(format!("{author} - {source}")).size(16)),
+                (None, Some(source)) => Some(text(format!("{source}")).size(16)),
+                _ => None,
+            })
+            .push_maybe(match image {
+                Some(handle) => Some(Image::new(handle).height(Shrink)),
+                None => None,
+            })
+            .push_maybe(match &article.content {
+                Some(content) => Some(text(content).size(20)),
+                None => None,
+            }),
+    )
+    .padding([0, 10]) // top/bottom, left/right
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .align_x(Alignment::Center)
+    .align_y(Alignment::Center)
+    .style(|theme| container::Style {
+        background: Some(Background::Color(theme.palette().background)),
+        text_color: Some(theme.palette().text),
+        border: Border::default()
+            .color(theme.palette().primary)
+            .rounded(10)
+            .width(2),
+        ..Default::default()
+    })
     .into()
 }
 

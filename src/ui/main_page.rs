@@ -7,6 +7,7 @@ use crate::ui::article::article_to_card;
 use crate::ui::article::article_view;
 use crate::ui::article::get_image_from_url;
 use iced::Alignment;
+use iced::Size;
 use iced::color;
 use iced::futures::SinkExt;
 use iced::widget::Row;
@@ -15,6 +16,7 @@ use iced::widget::button::Style;
 use iced::widget::container;
 use iced::widget::image;
 use iced::widget::image::Handle;
+use iced::window;
 use std::time::Duration;
 
 use crate::newsapi::NewsAPIError;
@@ -150,6 +152,15 @@ impl Page for MainPage {
     fn update(&mut self, message: Message) -> Action {
         use MainPageMessage::*;
         use Message::MainPage as M;
+
+        // if let Message::Event(event) = message {
+        //     match event {
+        //         iced::Event::Window(iced::window::Event::Resized(size)) => {}
+        //         _ => (),
+        //     }
+
+        //     return Action::None;
+        // }
 
         if let Message::MainPage(message) = message {
             match message {

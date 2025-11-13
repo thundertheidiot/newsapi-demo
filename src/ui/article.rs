@@ -1,6 +1,7 @@
 use iced::Alignment;
 use iced::Background;
 use iced::Border;
+use iced::Color;
 use iced::Length::FillPortion;
 use iced::Length::Shrink;
 use iced::advanced::image::Bytes;
@@ -40,13 +41,31 @@ pub fn article_to_card<'a>(
             Some(handle) => Some(Image::new(handle)),
             None => None,
         });
-
     Button::new(
         container(content.spacing(5)).width(Length::FillPortion(1)), // .max_height(200),
     )
     .on_press(Message::MainPage(MainPageMessage::ActiveArticle(Some(
         index,
     ))))
+    .width(Length::Fill)
+    .height(300)
+    .style(|theme, state| button::Style {
+        background: match state {
+            Status::Hovered => Some(Background::Color(Color::from_rgb(1.0, 1.0, 1.0))),
+            _ => Some(Background::Color(Color::from_rgb(0.8, 0.8, 0.8))),
+        },
+        border: match state {
+            Status::Hovered => Border::default()
+                .color(theme.palette().primary)
+                .rounded(10)
+                .width(3),
+            _ => Border::default()
+                .color(theme.palette().primary)
+                .rounded(10)
+                .width(2),
+        },
+        ..Default::default()
+    })
     .into()
 }
 
@@ -76,9 +95,8 @@ pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element
                 None => None,
             }),
     )
-    .padding([0, 10]) // top/bottom, left/right
+    .padding([10, 10]) // top/bottom, left/right
     .width(Length::Fill)
-    .height(Length::Fill)
     .align_x(Alignment::Center)
     .align_y(Alignment::Center)
     .style(|theme| container::Style {

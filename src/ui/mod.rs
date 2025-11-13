@@ -2,7 +2,10 @@ use crate::ui::main_page::MainPageMessage;
 use crate::ui::token_page::TokenPage;
 use crate::ui::token_page::TokenPageMessage;
 use iced::Element;
+use iced::Event;
+use iced::Subscription;
 use iced::Task;
+use iced::event;
 use iced::widget::text_input::focus;
 
 mod article;
@@ -19,6 +22,7 @@ pub enum Message {
     TokenPage(TokenPageMessage),
     MainPage(MainPageMessage),
     OpenLink(String),
+    Event(Event),
 }
 
 pub enum Action {
@@ -66,5 +70,9 @@ impl App {
 
     pub fn view(&self) -> Element<'_, Message> {
         self.page.view()
+    }
+
+    pub fn subscription(&self) -> Subscription<Message> {
+        event::listen().map(Message::Event)
     }
 }

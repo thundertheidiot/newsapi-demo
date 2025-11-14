@@ -27,6 +27,8 @@ pub enum NewsAPIError {
     Serde(#[from] serde_json::Error),
     #[error("IO Error: {0:?}")]
     IO(#[from] std::io::Error),
+    #[error("Invalid Image {0}")]
+    Image(#[from] image::ImageError),
     #[error("Invalid Header Value")]
     HeaderValue(#[from] reqwest::header::InvalidHeaderValue),
 }

@@ -152,5 +152,11 @@ pub async fn get_image_from_url(url: &str) -> Result<Bytes, NewsAPIError> {
 
             bytes
         }
-    })
+    };
+
+    // very simple image data validation
+    // if the format is invalid, this will return an ImageError, otherwise we discard the guessed format
+    let _ = image::guess_format(&bytes)?;
+
+    Ok(bytes)
 }

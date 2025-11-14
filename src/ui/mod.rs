@@ -23,6 +23,7 @@ pub enum Message {
     MainPage(MainPageMessage),
     OpenLink(String),
     Event(Event),
+    NoOp,
 }
 
 pub enum Action {
@@ -43,7 +44,7 @@ impl App {
             Self {
                 page: Box::new(TokenPage::new()),
             },
-            // stating task
+            // starting task
             focus(TOKEN_INPUT_ID),
         )
     }

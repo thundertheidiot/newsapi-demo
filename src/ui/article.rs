@@ -6,11 +6,13 @@ use iced::Length::FillPortion;
 use iced::Length::Shrink;
 use iced::advanced::image::Bytes;
 use iced::color;
+use iced::mouse;
 use iced::widget::Column;
 use iced::widget::Container;
 use iced::widget::Image;
 use iced::widget::button;
 use iced::widget::image::Handle;
+use iced::widget::mouse_area;
 use sha2::Digest;
 use sha2::Sha256;
 use std::env::temp_dir;
@@ -70,44 +72,51 @@ pub fn article_to_card<'a>(
 }
 
 pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element<'a, Message> {
-    container(
-        Column::<Message, Theme>::with_capacity(6)
-            .push(text(&article.title).size(44))
-            .push_maybe(match &article.url {
-                Some(url) => Some(button("open").on_press(Message::OpenLink(url.clone()))),
-                None => None,
-            })
-            .push_maybe(match &article.description {
-                Some(description) => Some(text(description).size(32)),
-                None => None,
-            })
-            .push_maybe(match (&article.author, &article.source.name) {
-                (Some(author), Some(source)) => Some(text(format!("{author} - {source}")).size(16)),
-                (None, Some(source)) => Some(text(format!("{source}")).size(16)),
-                _ => None,
-            })
-            .push_maybe(match image {
-                Some(handle) => Some(Image::new(handle).height(Shrink)),
-                None => None,
-            })
-            .push_maybe(match &article.content {
-                Some(content) => Some(text(content).size(20)),
-                None => None,
-            }),
+    mouse_area(
+        container(
+            Column::<Message, Theme>::with_capacity(6)
+                .push(text(&article.title).size(44))
+                .push_maybe(match &article.url {
+                    Some(url) => Some(button("open").on_press(Message::OpenLink(url.clone()))),
+                    None => None,
+                })
+                .push_maybe(match &article.description {
+                    Some(description) => Some(text(description).size(32)),
+                    None => None,
+                })
+                .push_maybe(match (&article.author, &article.source.name) {
+                    (Some(author), Some(source)) => {
+                        Some(text(format!("{author} - {source}")).size(16))
+                    }
+                    (None, Some(source)) => Some(text(format!("{source}")).size(16)),
+                    _ => None,
+                })
+                .push_maybe(match image {
+                    Some(handle) => Some(Image::new(handle).height(Shrink)),
+                    None => None,
+                })
+                .push_maybe(match &article.content {
+                    Some(content) => Some(text(content).size(20)),
+                    None => None,
+                }),
+        )
+        .padding([10, 10]) // top/bottom, left/right
+        .width(Length::Fill)
+        .align_x(Alignment::Center)
+        .align_y(Alignment::Center)
+        .style(|theme| container::Style {
+            background: Some(Background::Color(theme.palette().background)),
+            text_color: Some(theme.palette().text),
+            border: Border::default()
+                .color(theme.palette().primary)
+                .rounded(10)
+                .width(2),
+            ..Default::default()
+        }),
     )
-    .padding([10, 10]) // top/bottom, left/right
-    .width(Length::Fill)
-    .align_x(Alignment::Center)
-    .align_y(Alignment::Center)
-    .style(|theme| container::Style {
-        background: Some(Background::Color(theme.palette().background)),
-        text_color: Some(theme.palette().text),
-        border: Border::default()
-            .color(theme.palette().primary)
-            .rounded(10)
-            .width(2),
-        ..Default::default()
-    })
+    .on_press(Message::NoOp)
+    .on_right_press(Message::MainPage(MainPageMessage::ActiveArticle(None)))
+    .interaction(mouse::Interaction::Idle)
     .into()
 }
 
@@ -135,7 +144,7 @@ pub async fn get_image_from_url(url: &str) -> Result<Bytes, NewsAPIError> {
 
     let path = url_to_path(url);
 
-    Ok(match path.exists() {
+    let bytes = match path.exists() {
         true => tokio::fs::read(path).await?.into(),
         false => {
             let bytes = reqwest::get(url).await?.bytes().await?;

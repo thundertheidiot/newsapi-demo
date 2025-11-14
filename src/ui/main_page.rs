@@ -16,6 +16,7 @@ use iced::widget::button::Style;
 use iced::widget::container;
 use iced::widget::image;
 use iced::widget::image::Handle;
+use iced::widget::mouse_area;
 use iced::window;
 use std::time::Duration;
 
@@ -83,26 +84,29 @@ impl Page for MainPage {
         let stack: Stack<'_, Message> = Stack::with_capacity(2)
             .push_maybe(match &self.search_result {
                 Some(Ok(data)) => Some::<Element<'_, Message>>(
-                    scrollable(Column::with_children(
-                        data.articles
-                            .iter()
-                            .enumerate()
-                            .collect::<Vec<(usize, &Article)>>()
-                            .chunks(3)
-                            .map(|chunk| {
-                                Into::<Element<'_, Message>>::into(
-                                    Row::with_children(
-                                        // TODO: optimize this
-                                        // usize gets copied through the dereference
-                                        chunk.into_iter().map(|(i, a)| {
-                                            article_to_card(*i, a, &self.images_loaded[*i])
-                                        }),
+                    scrollable(
+                        Column::with_children(
+                            data.articles
+                                .iter()
+                                .enumerate()
+                                .collect::<Vec<(usize, &Article)>>()
+                                .chunks(3)
+                                .map(|chunk| {
+                                    Into::<Element<'_, Message>>::into(
+                                        Row::with_children(
+                                            // TODO: optimize this
+                                            // usize gets copied through the dereference
+                                            chunk.into_iter().map(|(i, a)| {
+                                                article_to_card(*i, a, &self.images_loaded[*i])
+                                            }),
+                                        )
+                                        .spacing(10)
+                                        .align_y(Alignment::Center),
                                     )
-                                    .spacing(10)
-                                    .align_y(Alignment::Center),
-                                )
-                            }),
-                    ))
+                                }),
+                        )
+                        .spacing(5),
+                    )
                     .into(),
                 ),
                 Some(Err(error)) => Some(
@@ -114,20 +118,21 @@ impl Page for MainPage {
             })
             .push_maybe(match (self.active_article, &self.search_result) {
                 (Some(index), Some(Ok(data))) => Some(
-                    button(
+                    mouse_area(
                         container(article_view(
                             &data.articles[index],
                             &self.images_loaded[index],
                         ))
-                        .padding(20),
+                        .padding(20)
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .style(|_theme| container::Style {
+                            background: None,
+                            ..Default::default()
+                        }),
                     )
-                    .padding(0)
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .style(|_theme, _status| Style {
-                        background: None,
-                        ..Default::default()
-                    })
+                    .interaction(iced::mouse::Interaction::Idle)
+                    .on_right_press(M(ActiveArticle(None)))
                     .on_press(M(ActiveArticle(None))),
                 ),
                 _ => None,

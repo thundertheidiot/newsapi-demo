@@ -2,6 +2,7 @@ use crate::fetch_top;
 use crate::newsapi::NewsAPISuccess;
 use crate::newsapi::article::Article;
 use crate::newsapi::search;
+use crate::ui::SEARCH_BAR_ID;
 use crate::ui::article::article_to_card;
 use crate::ui::article::article_view;
 use crate::ui::article::get_image_from_url;
@@ -72,37 +73,58 @@ impl Page for MainPage {
         use MainPageMessage::*;
         use Message::MainPage as M;
 
-        let stack: Stack<'_, Message> = Stack::with_capacity(2)
-            .push_maybe(match &self.search_result {
-                Some(Ok(data)) => Some::<Element<'_, Message>>(
-                    scrollable(
-                        Column::with_children(
-                            data.articles
-                                .iter()
-                                .enumerate()
-                                .collect::<Vec<(usize, &Article)>>()
-                                .chunks(3)
-                                .map(|chunk| {
-                                    Into::<Element<'_, Message>>::into(
-                                        Row::with_children(chunk.iter().map(|(i, a)| {
-                                            article_to_card(*i, a, &self.images_loaded[*i])
-                                        }))
-                                        .spacing(10)
-                                        .align_y(Alignment::Center),
-                                    )
-                                }),
-                        )
-                        .spacing(5),
+        Stack::with_capacity(2)
+            .push(
+                Column::with_capacity(2) // allocate biggest possible capacity
+                    .push(
+                        // search bar component
+                        row![
+                            text_input("Search: ", &self.search_query)
+                                .on_input(|s| M(SearchBarOnInput(s)))
+                                .on_submit(M(SearchSubmit))
+                                .id(SEARCH_BAR_ID) // id for focus task
+                                .size(24),
+                            button("Submit").on_press(M(SearchSubmit)).padding(10),
+                        ]
+                        .spacing(5)
+                        .padding(15),
                     )
-                    .into(),
-                ),
-                Some(Err(error)) => Some(
-                    container(text(error).color(color!(0xff0000)).size(32))
-                        .padding(15)
-                        .into(),
-                ),
-                _ => None,
-            })
+                    // only show list of article cards if search result exists
+                    // it will be None at the start
+                    .push_maybe(match &self.search_result {
+                        // scrollable list of article cards
+                        Some(Ok(data)) => Some::<Element<'_, Message>>(
+                            scrollable(
+                                Column::with_children(
+                                    data.articles
+                                        .iter()
+                                        .enumerate()
+                                        .collect::<Vec<(usize, &Article)>>()
+                                        // TODO dynamic chunking
+                                        .chunks(3)
+                                        .map(|chunk| {
+                                            Into::<Element<'_, Message>>::into(
+                                                Row::with_children(chunk.iter().map(|(i, a)| {
+                                                    article_to_card(*i, a, &self.images_loaded[*i])
+                                                }))
+                                                .spacing(10)
+                                                .align_y(Alignment::Center),
+                                            )
+                                        }),
+                                )
+                                .spacing(5),
+                            )
+                            .into(),
+                        ),
+                        // Error message
+                        Some(Err(error)) => Some(
+                            container(text(error).color(color!(0xff0000)).size(32))
+                                .padding(15)
+                                .into(),
+                        ),
+                        _ => None,
+                    }),
+            )
             .push_maybe(match (self.active_article, &self.search_result) {
                 (Some(index), Some(Ok(data))) => Some(
                     mouse_area(
@@ -113,6 +135,7 @@ impl Page for MainPage {
                         .padding(20)
                         .width(Length::Fill)
                         .height(Length::Fill)
+                        .center(Length::Fill)
                         .style(|_theme| container::Style {
                             background: None,
                             ..Default::default()
@@ -123,22 +146,8 @@ impl Page for MainPage {
                     .on_press(M(ActiveArticle(None))),
                 ),
                 _ => None,
-            });
-
-        column![
-            row![
-                text_input("Search: ", &self.search_query)
-                    .on_input(|s| M(SearchBarOnInput(s)))
-                    .on_submit(M(SearchSubmit))
-                    .size(24),
-                button("Submit").on_press(M(SearchSubmit)).padding(10),
-            ]
-            .spacing(5)
-            .padding(15),
-            stack
-        ]
-        .spacing(10)
-        .into()
+            })
+            .into()
     }
 
     fn update(&mut self, message: Message) -> Action {

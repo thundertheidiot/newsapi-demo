@@ -4,11 +4,15 @@ use crate::newsapi::NewsAPIError;
 use crate::ui::Action;
 use crate::ui::Message;
 use crate::ui::Page;
+use crate::ui::SEARCH_BAR_ID;
 use crate::ui::TOKEN_INPUT_ID;
 use crate::ui::main_page::MainPage;
 use iced::Element;
+use iced::Task;
+use iced::futures::task;
 use iced::widget::Space;
 use iced::widget::button;
+use iced::widget::text_input::focus;
 use iced::widget::{column, row, text, text_input};
 
 #[derive(Default)]
@@ -65,7 +69,7 @@ impl Page for TokenPage {
                     self.token = input;
                 }
                 Submit => match MainPage::new(self.token.clone()) {
-                    Ok(page) => return Action::SwitchPage(Box::new(page)),
+                    Ok(page) => return Action::SwitchPage((Box::new(page), focus(SEARCH_BAR_ID))),
                     Err(e) => {
                         self.error = Some(e);
                     }

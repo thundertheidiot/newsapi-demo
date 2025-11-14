@@ -27,7 +27,7 @@ pub enum Message {
 }
 
 pub enum Action {
-    SwitchPage(Box<dyn Page>),
+    SwitchPage((Box<dyn Page>, Task<Message>)),
     Task(Task<Message>),
     None,
 }
@@ -37,6 +37,7 @@ pub struct App {
 }
 
 pub const TOKEN_INPUT_ID: &str = "token_input_box";
+pub const SEARCH_BAR_ID: &str = "search_box";
 
 impl App {
     pub fn new() -> (Self, Task<Message>) {
@@ -60,9 +61,9 @@ impl App {
         }
 
         match self.page.update(message) {
-            SwitchPage(page) => {
+            SwitchPage((page, task)) => {
                 self.page = page;
-                iced::Task::none()
+                task
             }
             Task(task) => task,
             None => iced::Task::none(),

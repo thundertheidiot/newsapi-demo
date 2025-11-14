@@ -12,7 +12,7 @@ mod article;
 mod main_page;
 mod token_page;
 
-trait Page {
+pub trait Page {
     fn update(&mut self, message: Message) -> Action;
     fn view(&self) -> Element<'_, Message>;
 }
@@ -36,7 +36,7 @@ pub struct App {
     page: Box<dyn Page>,
 }
 
-pub const TOKEN_INPUT_ID: &'static str = "token_input_box";
+pub const TOKEN_INPUT_ID: &str = "token_input_box";
 
 impl App {
     pub fn new() -> (Self, Task<Message>) {

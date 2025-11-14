@@ -2,13 +2,10 @@ use iced::Alignment;
 use iced::Background;
 use iced::Border;
 use iced::Color;
-use iced::Length::FillPortion;
 use iced::Length::Shrink;
 use iced::advanced::image::Bytes;
-use iced::color;
 use iced::mouse;
 use iced::widget::Column;
-use iced::widget::Container;
 use iced::widget::Image;
 use iced::widget::button;
 use iced::widget::image::Handle;
@@ -16,20 +13,17 @@ use iced::widget::mouse_area;
 use sha2::Digest;
 use sha2::Sha256;
 use std::env::temp_dir;
-use std::fs::{create_dir, write};
-use std::hash::{DefaultHasher, Hash, Hasher};
-use std::path::Path;
+use std::fs::create_dir;
 use std::path::PathBuf;
-use std::task;
 
 use crate::newsapi::NewsAPIError;
 use crate::newsapi::article::Article;
 use crate::ui::Message;
 use crate::ui::main_page::MainPageMessage;
-use iced::widget::button::{Status, Style};
+use iced::widget::Button;
+use iced::widget::button::Status;
 use iced::widget::text;
-use iced::widget::{Button, Space};
-use iced::{Element, widget::column, widget::container};
+use iced::{Element, widget::container};
 use iced::{Length, Theme};
 
 pub fn article_to_card<'a>(
@@ -39,10 +33,7 @@ pub fn article_to_card<'a>(
 ) -> Element<'a, Message> {
     let content: Column<'_, Message> = Column::with_capacity(2)
         .push(text(&article.title).size(24))
-        .push_maybe(match image {
-            Some(handle) => Some(Image::new(handle)),
-            None => None,
-        });
+        .push_maybe(image.as_ref().map(Image::new));
     Button::new(
         container(content.spacing(5)).width(Length::FillPortion(1)), // .max_height(200),
     )
@@ -76,29 +67,32 @@ pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element
         container(
             Column::<Message, Theme>::with_capacity(6)
                 .push(text(&article.title).size(44))
-                .push_maybe(match &article.url {
-                    Some(url) => Some(button("open").on_press(Message::OpenLink(url.clone()))),
-                    None => None,
-                })
-                .push_maybe(match &article.description {
-                    Some(description) => Some(text(description).size(32)),
-                    None => None,
-                })
+                .push_maybe(
+                    article
+                        .url
+                        .as_ref()
+                        .map(|url| button("open").on_press(Message::OpenLink(url.clone()))),
+                )
+                .push_maybe(
+                    article
+                        .description
+                        .as_ref()
+                        .map(|description| text(description).size(32)),
+                )
                 .push_maybe(match (&article.author, &article.source.name) {
                     (Some(author), Some(source)) => {
                         Some(text(format!("{author} - {source}")).size(16))
                     }
-                    (None, Some(source)) => Some(text(format!("{source}")).size(16)),
+                    (None, Some(source)) => Some(text(source.to_string()).size(16)),
                     _ => None,
                 })
-                .push_maybe(match image {
-                    Some(handle) => Some(Image::new(handle).height(Shrink)),
-                    None => None,
-                })
-                .push_maybe(match &article.content {
-                    Some(content) => Some(text(content).size(20)),
-                    None => None,
-                }),
+                .push_maybe(image.as_ref().map(|image| Image::new(image).height(Shrink)))
+                .push_maybe(
+                    article
+                        .content
+                        .as_ref()
+                        .map(|content| text(content).size(20)),
+                ),
         )
         .padding([10, 10]) // top/bottom, left/right
         .width(Length::Fill)

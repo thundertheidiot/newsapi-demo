@@ -25,15 +25,10 @@ pub enum TokenPageMessage {
 
 impl TokenPage {
     pub fn new() -> Self {
-        let token = match var("NEWS_API_TOKEN") {
-            Ok(var) => var,
-            Err(_) => String::new(),
-        };
+        // empty string by default
+        let token = var("NEWS_API_TOKEN").unwrap_or_default();
 
-        Self {
-            token: token,
-            error: None,
-        }
+        Self { token, error: None }
     }
 }
 

@@ -1,4 +1,3 @@
-use crate::TopHeadlinesResponse;
 use crate::fetch_top;
 use crate::newsapi::NewsAPISuccess;
 use crate::newsapi::article::Article;
@@ -7,21 +6,14 @@ use crate::ui::article::article_to_card;
 use crate::ui::article::article_view;
 use crate::ui::article::get_image_from_url;
 use iced::Alignment;
-use iced::Size;
 use iced::color;
-use iced::futures::SinkExt;
 use iced::widget::Row;
 use iced::widget::Stack;
-use iced::widget::button::Style;
 use iced::widget::container;
-use iced::widget::image;
 use iced::widget::image::Handle;
 use iced::widget::mouse_area;
-use iced::window;
-use std::time::Duration;
 
 use crate::newsapi::NewsAPIError;
-use crate::newsapi::response::EverythingResponse;
 use crate::ui::Action;
 use crate::ui::Message;
 use crate::ui::Page;
@@ -29,7 +21,6 @@ use iced::Element;
 use iced::Length;
 use iced::Task;
 use iced::widget::Column;
-use iced::widget::Space;
 use iced::widget::button;
 use iced::widget::scrollable;
 use iced::widget::text_input;
@@ -67,7 +58,7 @@ impl MainPage {
             .build()?;
 
         Ok(Self {
-            client: client,
+            client,
             search_query: String::new(),
             search_result: None,
             active_article: None,
@@ -93,13 +84,9 @@ impl Page for MainPage {
                                 .chunks(3)
                                 .map(|chunk| {
                                     Into::<Element<'_, Message>>::into(
-                                        Row::with_children(
-                                            // TODO: optimize this
-                                            // usize gets copied through the dereference
-                                            chunk.into_iter().map(|(i, a)| {
-                                                article_to_card(*i, a, &self.images_loaded[*i])
-                                            }),
-                                        )
+                                        Row::with_children(chunk.iter().map(|(i, a)| {
+                                            article_to_card(*i, a, &self.images_loaded[*i])
+                                        }))
                                         .spacing(10)
                                         .align_y(Alignment::Center),
                                     )
@@ -209,7 +196,6 @@ impl Page for MainPage {
                 ActiveArticle(index) => {
                     self.active_article = index;
                 }
-                _ => (),
             }
         }
 

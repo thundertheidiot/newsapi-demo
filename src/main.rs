@@ -1,12 +1,9 @@
-use crate::newsapi::NewsAPIResponse;
 use crate::newsapi::fetch_top;
-use crate::newsapi::response::EverythingResponse;
 use crate::ui::App;
 use reqwest::header::HeaderMap;
 use reqwest::header::HeaderValue;
 
 use crate::newsapi::NewsAPIError;
-use crate::newsapi::response::TopHeadlinesResponse;
 use std::env;
 
 mod newsapi;

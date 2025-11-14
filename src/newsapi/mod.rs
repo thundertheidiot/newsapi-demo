@@ -1,5 +1,4 @@
 pub mod article;
-pub mod response;
 
 use crate::newsapi::article::Article;
 use reqwest::Client;
@@ -33,6 +32,7 @@ pub enum NewsAPIError {
     HeaderValue(#[from] reqwest::header::InvalidHeaderValue),
 }
 
+// both endpoints share this format
 #[derive(Debug, Deserialize, Clone)]
 pub struct NewsAPISuccess {
     pub status: String,
@@ -55,9 +55,9 @@ pub enum NewsAPIResponse {
     Fail(NewsAPIFail),
 }
 
-impl Into<Result<NewsAPISuccess, NewsAPIError>> for NewsAPIResponse {
-    fn into(self) -> Result<NewsAPISuccess, NewsAPIError> {
-        match self {
+impl From<NewsAPIResponse> for Result<NewsAPISuccess, NewsAPIError> {
+    fn from(val: NewsAPIResponse) -> Self {
+        match val {
             NewsAPIResponse::Success(v) => Ok(v),
             NewsAPIResponse::Fail(e) => Err(NewsAPIError::Api {
                 code: e.code,

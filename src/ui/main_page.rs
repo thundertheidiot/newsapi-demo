@@ -6,6 +6,7 @@ use crate::ui::SEARCH_BAR_ID;
 use crate::ui::article::article_to_card;
 use crate::ui::article::article_view;
 use crate::ui::article::get_image_from_url;
+use crate::ui::style::SEARCH_ICON;
 use crate::ui::style::button_style;
 use crate::ui::style::text_input_style;
 use iced::Alignment;
@@ -15,6 +16,7 @@ use iced::widget::Stack;
 use iced::widget::container;
 use iced::widget::image::Handle;
 use iced::widget::mouse_area;
+use iced::widget::svg;
 
 use crate::newsapi::NewsAPIError;
 use crate::ui::Action;
@@ -81,17 +83,21 @@ impl Page for MainPage {
                     .push(
                         // search bar component
                         row![
-                            text_input("Search: ", &self.search_query)
+                            text_input("Search for articles", &self.search_query)
                                 .on_input(|s| M(SearchBarOnInput(s)))
                                 .on_submit(M(SearchSubmit))
                                 .id(SEARCH_BAR_ID) // id for focus task
                                 .style(text_input_style)
+                                .width(Length::FillPortion(19))
                                 .size(24),
-                            button("Submit")
+                            button(svg(iced::advanced::svg::Handle::from_memory(SEARCH_ICON)))
                                 .on_press(M(SearchSubmit))
                                 .padding(10)
+                                .width(Length::FillPortion(1))
+                                .height(Length::Fill)
                                 .style(button_style),
                         ]
+                        .height(Length::Fixed(72.0))
                         .spacing(5)
                         .padding(15),
                     )
@@ -121,6 +127,7 @@ impl Page for MainPage {
                                 .spacing(5),
                             )
                             .spacing(5)
+                            .height(Length::Fill)
                             .into(),
                         ),
                         // Error message
@@ -160,15 +167,6 @@ impl Page for MainPage {
     fn update(&mut self, message: Message) -> Action {
         use MainPageMessage::*;
         use Message::MainPage as M;
-
-        // if let Message::Event(event) = message {
-        //     match event {
-        //         iced::Event::Window(iced::window::Event::Resized(size)) => {}
-        //         _ => (),
-        //     }
-
-        //     return Action::None;
-        // }
 
         if let Message::MainPage(message) = message {
             match message {

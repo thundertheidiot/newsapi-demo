@@ -16,6 +16,7 @@ use iced::widget::horizontal_rule;
 use iced::widget::image::Handle;
 use iced::widget::mouse_area;
 use iced::widget::scrollable;
+use iced::widget::svg;
 use sha2::Digest;
 use sha2::Sha256;
 use std::env::temp_dir;
@@ -26,8 +27,10 @@ use crate::newsapi::NewsAPIError;
 use crate::newsapi::article::Article;
 use crate::ui::Message;
 use crate::ui::main_page::MainPageMessage;
+use crate::ui::style::CLOSE_ICON;
 use crate::ui::style::button_style;
 use crate::ui::style::card_style;
+use crate::ui::style::close_button_style;
 use iced::widget::Button;
 use iced::widget::button::Status;
 use iced::widget::text;
@@ -68,8 +71,9 @@ pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element
             Column::<Message, Theme>::with_capacity(3)
                 .push(
                     container(
-                        button("[X] Close")
-                            .style(button_style)
+                        button(svg(svg::Handle::from_memory(CLOSE_ICON)))
+                            .width(Length::Fixed(48.0))
+                            .style(close_button_style)
                             .on_press(Message::MainPage(MainPageMessage::ActiveArticle(None))),
                     )
                     .align_right(Length::Fill)

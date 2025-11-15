@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 hex = "0.4.3"
-iced = { version = "0.13.1", features = ["wgpu", "tokio", "image", "advanced"] }
+iced = { version = "0.13.1", features = ["wgpu", "tokio", "image", "advanced", "svg"] }
 image = "0.25.8"
 open = "5.3.2"
 reqwest = { version = "0.12.24", features = ["json"] }

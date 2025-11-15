@@ -1,4 +1,8 @@
+use crate::ui::style::SUBMIT_ICON;
 use crate::ui::style::text_input_style;
+use iced::Length;
+use iced::widget::svg;
+use iced::widget::svg::Handle;
 use std::env::var;
 
 use crate::newsapi::NewsAPIError;
@@ -49,13 +53,17 @@ impl Page for TokenPage {
                 .on_submit(T(Submit))
                 .id(TOKEN_INPUT_ID)
                 .style(text_input_style)
+                .width(Length::FillPortion(19))
                 .size(24),
-            button("Submit")
+            button(svg(Handle::from_memory(SUBMIT_ICON)))
                 .on_press(T(Submit))
                 .padding(10)
+                .width(Length::FillPortion(1))
+                .height(Length::Fill)
                 .style(button_style),
         ]
         .spacing(5)
+        .height(Length::Fixed(72.0))
         .padding(15);
 
         let error_text: Element<'_, Message> = match &self.error {

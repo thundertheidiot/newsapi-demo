@@ -43,7 +43,7 @@ impl TokenPage {
 }
 
 impl Page for TokenPage {
-    fn view(&self) -> Element<'_, Message> {
+    fn view(&self, _size: (f32, f32)) -> Element<'_, Message> {
         use crate::ui::Message::TokenPage as T;
         use TokenPageMessage::*;
 

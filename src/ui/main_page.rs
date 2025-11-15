@@ -3,12 +3,14 @@ use crate::newsapi::NewsAPISuccess;
 use crate::newsapi::article::Article;
 use crate::newsapi::search;
 use crate::ui::SEARCH_BAR_ID;
+use crate::ui::TOKEN_INPUT_ID;
 use crate::ui::article::article_to_card;
 use crate::ui::article::article_view;
 use crate::ui::article::get_image_from_url;
 use crate::ui::style::SEARCH_ICON;
 use crate::ui::style::button_style;
 use crate::ui::style::text_input_style;
+use crate::ui::token_page::TokenPage;
 use iced::Alignment;
 use iced::color;
 use iced::widget::Row;
@@ -17,6 +19,7 @@ use iced::widget::container;
 use iced::widget::image::Handle;
 use iced::widget::mouse_area;
 use iced::widget::svg;
+use iced::widget::text_input::focus;
 
 use crate::newsapi::NewsAPIError;
 use crate::ui::Action;
@@ -50,6 +53,7 @@ pub enum MainPageMessage {
     // Handle is a reference to bytes, doesn't own the data
     ImageLoaded(Option<(usize, Handle)>),
     ActiveArticle(Option<usize>),
+    BackToApiKeyPage,
 }
 
 impl MainPage {
@@ -73,9 +77,15 @@ impl MainPage {
 }
 
 impl Page for MainPage {
-    fn view(&self) -> Element<'_, Message> {
+    fn view(&self, size: (f32, f32)) -> Element<'_, Message> {
         use MainPageMessage::*;
         use Message::MainPage as M;
+
+        let w = size.0;
+        let mut chunks = (w / 400.0).floor() as usize;
+        if chunks < 1 {
+            chunks = 1;
+        }
 
         Stack::with_capacity(2)
             .push(
@@ -112,8 +122,7 @@ impl Page for MainPage {
                                         .iter()
                                         .enumerate()
                                         .collect::<Vec<(usize, &Article)>>()
-                                        // TODO dynamic chunking
-                                        .chunks(3)
+                                        .chunks(chunks)
                                         .map(|chunk| {
                                             Into::<Element<'_, Message>>::into(
                                                 Row::with_children(chunk.iter().map(|(i, a)| {
@@ -124,7 +133,8 @@ impl Page for MainPage {
                                             )
                                         }),
                                 )
-                                .spacing(5),
+                                .spacing(5)
+                                .padding(5),
                             )
                             .spacing(5)
                             .height(Length::Fill)
@@ -132,9 +142,14 @@ impl Page for MainPage {
                         ),
                         // Error message
                         Some(Err(error)) => Some(
-                            container(text(error).color(color!(0xff0000)).size(32))
-                                .padding(15)
-                                .into(),
+                            container(column![
+                                text(error).color(color!(0xff0000)).size(32),
+                                button("Back to API key page")
+                                    .style(button_style)
+                                    .on_press(M(BackToApiKeyPage))
+                            ])
+                            .padding(15)
+                            .into(),
                         ),
                         _ => None,
                     }),
@@ -150,6 +165,8 @@ impl Page for MainPage {
                         .width(Length::Fill)
                         .height(Length::Fill)
                         .center(Length::Fill)
+                        .align_x(Alignment::Center)
+                        .align_y(Alignment::Center)
                         .style(|_theme| container::Style {
                             background: None,
                             ..Default::default()
@@ -209,6 +226,9 @@ impl Page for MainPage {
                 }
                 ActiveArticle(index) => {
                     self.active_article = index;
+                }
+                BackToApiKeyPage => {
+                    return Action::SwitchPage((Box::new(TokenPage::new()), focus(TOKEN_INPUT_ID)));
                 }
             }
         }

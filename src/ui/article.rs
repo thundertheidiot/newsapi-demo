@@ -127,8 +127,7 @@ pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element
         )
         .padding([10, 10]) // top/bottom, left/right
         .width(Length::Fill)
-        .align_x(Alignment::Center)
-        .align_y(Alignment::Center)
+        .max_width(1500)
         .style(|theme| container::Style {
             background: Some(Background::Color(theme.palette().background)),
             text_color: Some(theme.palette().text),

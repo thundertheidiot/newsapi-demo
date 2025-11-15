@@ -2,14 +2,20 @@ use iced::Alignment;
 use iced::Background;
 use iced::Border;
 use iced::Color;
+use iced::Font;
 use iced::Length::Shrink;
+use iced::Shadow;
+use iced::Vector;
 use iced::advanced::image::Bytes;
 use iced::mouse;
 use iced::widget::Column;
 use iced::widget::Image;
+use iced::widget::Space;
 use iced::widget::button;
+use iced::widget::horizontal_rule;
 use iced::widget::image::Handle;
 use iced::widget::mouse_area;
+use iced::widget::scrollable;
 use sha2::Digest;
 use sha2::Sha256;
 use std::env::temp_dir;
@@ -20,6 +26,8 @@ use crate::newsapi::NewsAPIError;
 use crate::newsapi::article::Article;
 use crate::ui::Message;
 use crate::ui::main_page::MainPageMessage;
+use crate::ui::style::button_style;
+use crate::ui::style::card_style;
 use iced::widget::Button;
 use iced::widget::button::Status;
 use iced::widget::text;
@@ -32,8 +40,16 @@ pub fn article_to_card<'a>(
     image: &Option<Handle>,
 ) -> Element<'a, Message> {
     let content: Column<'_, Message> = Column::with_capacity(2)
-        .push(text(&article.title).size(24))
+        .push(
+            text(&article.title)
+                .size(18)
+                .width(Length::Fill)
+                .style(|_theme| text::Style {
+                    color: Some(Color::from_rgb(0.1, 0.1, 0.1)),
+                }),
+        )
         .push_maybe(image.as_ref().map(Image::new));
+
     Button::new(
         container(content.spacing(5)).width(Length::FillPortion(1)), // .max_height(200),
     )
@@ -42,56 +58,67 @@ pub fn article_to_card<'a>(
     ))))
     .width(Length::Fill)
     .height(300)
-    .style(|theme, state| button::Style {
-        background: match state {
-            Status::Hovered => Some(Background::Color(Color::from_rgb(1.0, 1.0, 1.0))),
-            _ => Some(Background::Color(Color::from_rgb(0.8, 0.8, 0.8))),
-        },
-        border: match state {
-            Status::Hovered => Border::default()
-                .color(theme.palette().primary)
-                .rounded(10)
-                .width(3),
-            _ => Border::default()
-                .color(theme.palette().primary)
-                .rounded(10)
-                .width(2),
-        },
-        ..Default::default()
-    })
+    .style(card_style)
     .into()
 }
 
 pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element<'a, Message> {
     mouse_area(
         container(
-            Column::<Message, Theme>::with_capacity(6)
-                .push(text(&article.title).size(44))
-                .push_maybe(
-                    article
-                        .url
-                        .as_ref()
-                        .map(|url| button("open").on_press(Message::OpenLink(url.clone()))),
+            Column::<Message, Theme>::with_capacity(3)
+                .push(
+                    container(
+                        button("[X] Close")
+                            .style(button_style)
+                            .on_press(Message::MainPage(MainPageMessage::ActiveArticle(None))),
+                    )
+                    .align_right(Length::Fill)
+                    .padding(10),
                 )
-                .push_maybe(
-                    article
-                        .description
-                        .as_ref()
-                        .map(|description| text(description).size(32)),
-                )
-                .push_maybe(match (&article.author, &article.source.name) {
-                    (Some(author), Some(source)) => {
-                        Some(text(format!("{author} - {source}")).size(16))
-                    }
-                    (None, Some(source)) => Some(text(source.to_string()).size(16)),
-                    _ => None,
-                })
-                .push_maybe(image.as_ref().map(|image| Image::new(image).height(Shrink)))
-                .push_maybe(
-                    article
-                        .content
-                        .as_ref()
-                        .map(|content| text(content).size(20)),
+                .push(horizontal_rule(6))
+                .push(
+                    scrollable(
+                        Column::<Message, Theme>::with_capacity(9)
+                            .push(text(&article.title).size(44))
+                            .push_maybe(
+                                image.as_ref().map(|image| Image::new(image).height(Shrink)),
+                            )
+                            .push_maybe(match (&article.author, &article.source.name) {
+                                (Some(author), Some(source)) => {
+                                    Some(text(format!("{author} - {source}")).size(16))
+                                }
+                                (None, Some(source)) => Some(text(source.to_string()).size(16)),
+                                _ => None,
+                            })
+                            .push(horizontal_rule(6))
+                            .push_maybe(
+                                article
+                                    .description
+                                    .as_ref()
+                                    .map(|description| text(description).size(32)),
+                            )
+                            .push_maybe(
+                                article
+                                    .content
+                                    .as_ref()
+                                    .map(|content| text(content).size(20)),
+                            )
+                            .push_maybe(match (&article.description, &article.content) {
+                                (Some(_), _) | (_, Some(_)) => Some(horizontal_rule(6)),
+                                _ => None,
+                            })
+                            .push_maybe(article.url.as_ref().map(|url| {
+                                container(
+                                    button("Read full article")
+                                        .on_press(Message::OpenLink(url.clone()))
+                                        .style(button_style)
+                                        .width(Length::Fill),
+                                )
+                                .padding(10)
+                            }))
+                            .push(Space::with_height(3)),
+                    )
+                    .spacing(5),
                 ),
         )
         .padding([10, 10]) // top/bottom, left/right

@@ -6,6 +6,8 @@ use crate::ui::SEARCH_BAR_ID;
 use crate::ui::article::article_to_card;
 use crate::ui::article::article_view;
 use crate::ui::article::get_image_from_url;
+use crate::ui::style::button_style;
+use crate::ui::style::text_input_style;
 use iced::Alignment;
 use iced::color;
 use iced::widget::Row;
@@ -83,8 +85,12 @@ impl Page for MainPage {
                                 .on_input(|s| M(SearchBarOnInput(s)))
                                 .on_submit(M(SearchSubmit))
                                 .id(SEARCH_BAR_ID) // id for focus task
+                                .style(text_input_style)
                                 .size(24),
-                            button("Submit").on_press(M(SearchSubmit)).padding(10),
+                            button("Submit")
+                                .on_press(M(SearchSubmit))
+                                .padding(10)
+                                .style(button_style),
                         ]
                         .spacing(5)
                         .padding(15),
@@ -114,6 +120,7 @@ impl Page for MainPage {
                                 )
                                 .spacing(5),
                             )
+                            .spacing(5)
                             .into(),
                         ),
                         // Error message

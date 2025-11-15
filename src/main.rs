@@ -12,6 +12,8 @@ mod ui;
 fn main() -> iced::Result {
     iced::application("NewsAPI Demo", App::update, App::view)
         .subscription(App::subscription)
+        .font(include_bytes!("../Roboto-Regular.ttf"))
+        .default_font(iced::Font::with_name("Roboto"))
         .run_with(App::new)
 }
 

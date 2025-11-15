@@ -1,3 +1,4 @@
+use crate::ui::style::text_input_style;
 use std::env::var;
 
 use crate::newsapi::NewsAPIError;
@@ -7,6 +8,7 @@ use crate::ui::Page;
 use crate::ui::SEARCH_BAR_ID;
 use crate::ui::TOKEN_INPUT_ID;
 use crate::ui::main_page::MainPage;
+use crate::ui::style::button_style;
 use iced::Element;
 use iced::Task;
 use iced::futures::task;
@@ -46,8 +48,12 @@ impl Page for TokenPage {
                 .on_input(|s| T(OnInput(s)))
                 .on_submit(T(Submit))
                 .id(TOKEN_INPUT_ID)
+                .style(text_input_style)
                 .size(24),
-            button("Submit").on_press(T(Submit)).padding(10),
+            button("Submit")
+                .on_press(T(Submit))
+                .padding(10)
+                .style(button_style),
         ]
         .spacing(5)
         .padding(15);

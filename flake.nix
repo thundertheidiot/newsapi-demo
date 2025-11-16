@@ -21,21 +21,17 @@
 
         cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
 
-        buildInputs = with pkgs; [
-          toolchain
-          pkg-config
-          openssl
-          cacert
-          # expat
-          # fontconfig
-          # freetype
-          # freetype.dev
+        buildInputs =
+          (with pkgs; [
+            toolchain
+            pkg-config
+            cacert
+          ])
+          ++ runtimeLibs;
+
+        runtimeLibs = with pkgs; [
           libGL
           vulkan-loader
-          # xorg.libX11
-          # xorg.libXcursor
-          # xorg.libXi
-          # xorg.libXrandr
           wayland
           libxkbcommon
         ];
@@ -57,13 +53,24 @@
           env.RUSTFLAGS = "-C link-arg=-Wl,-rpath,${lib.makeLibraryPath buildInputs}";
         };
 
-        packages.default = craneLib.buildPackage {
-          inherit (cargoToml.package) version;
-          pname = cargoToml.package.name;
-          src = ./.;
+        packages.default =
+          pkgs.runCommand "${cargoToml.package.name}-wrapped" {
+            nativeBuildInputs = [pkgs.makeWrapper];
+          } (let
+            unwrapped = craneLib.buildPackage {
+              inherit (cargoToml.package) version;
+              pname = cargoToml.package.name;
+              src = ./.;
 
-          inherit buildInputs;
-        };
+              env.RUSTFLAGS = "-C link-arg=-Wl,-rpath,${lib.makeLibraryPath buildInputs}";
+
+              inherit buildInputs;
+            };
+          in ''
+            mkdir -p $out/bin
+            makeWrapper "${unwrapped}/bin/${cargoToml.package.name}" "$out/bin/${cargoToml.package.name}-wrapped" \
+              --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibs}
+          '');
       });
     };
 }

@@ -3,6 +3,7 @@ use crate::newsapi::NewsAPIArticlesSuccess;
 use crate::newsapi::NewsAPISourcesSuccess;
 use crate::newsapi::article::Article;
 use crate::newsapi::search_articles;
+use crate::newsapi::source::Source;
 use crate::ui::SEARCH_BAR_ID;
 use crate::ui::TOKEN_INPUT_ID;
 use crate::ui::article::article_to_card;
@@ -17,12 +18,14 @@ use crate::ui::token_page::TokenPage;
 use iced::Alignment;
 use iced::Background;
 use iced::Border;
+use iced::Color;
 use iced::Theme;
 use iced::color;
 use iced::widget::Row;
 use iced::widget::Space;
 use iced::widget::Stack;
 use iced::widget::container;
+use iced::widget::horizontal_rule;
 use iced::widget::image::Handle;
 use iced::widget::mouse_area;
 use iced::widget::svg;
@@ -55,11 +58,13 @@ pub struct MainPage {
     source_data: Option<Result<NewsAPISourcesSuccess, String>>,
     enabled_sources: HashMap<String, bool>,
     source_page: bool,
+    source_filter: String,
 }
 
 #[derive(Debug, Clone)]
 pub enum MainPageMessage {
     SearchBarOnInput(String),
+    SourceFilterOnInput(String),
     SearchSubmit,
     SearchComplete(Result<NewsAPIArticlesSuccess, String>),
     SourcesFetched(Result<NewsAPISourcesSuccess, String>),
@@ -68,7 +73,21 @@ pub enum MainPageMessage {
     ImageLoaded(Option<(usize, Handle)>),
     ActiveArticle(Option<usize>),
     ToggleSourcePage,
+    DisableAllSources,
     BackToApiKeyPage,
+}
+
+pub const SOURCE_FILTER_ID: &str = "source_filter_input";
+
+fn error_element<'a>(error: &'a str) -> Element<'a, Message> {
+    container(column![
+        text(error).color(color!(0xff0000)).size(32),
+        button("Back to API key page")
+            .style(button_style)
+            .on_press(Message::MainPage(MainPageMessage::BackToApiKeyPage))
+    ])
+    .padding(15)
+    .into()
 }
 
 impl MainPage {
@@ -90,6 +109,7 @@ impl MainPage {
             source_data: None,
             source_page: false,
             enabled_sources: HashMap::new(),
+            source_filter: String::new(),
         })
     }
 }
@@ -100,9 +120,13 @@ impl Page for MainPage {
         use Message::MainPage as M;
 
         let w = size.0;
-        let mut chunks = (w / 400.0).floor() as usize;
-        if chunks < 1 {
-            chunks = 1;
+        let mut article_chunks = (w / 400.0).floor() as usize;
+        if article_chunks < 1 {
+            article_chunks = 1;
+        }
+        let mut source_chunks = (w / 500.0).floor() as usize;
+        if source_chunks < 1 {
+            source_chunks = 1;
         }
 
         Stack::with_capacity(3)
@@ -125,22 +149,23 @@ impl Page for MainPage {
                                 .height(Length::Fill)
                                 .style(button_style),
                             tooltip(
-                                button(row![
-                                    svg(iced::advanced::svg::Handle::from_memory(LIST_ICON)),
-                                    text(self.enabled_sources.values().filter(|v| **v).count())
-                                ])
-                                .on_press(M(ToggleSourcePage))
-                                .padding(10)
-                                .width(Length::FillPortion(1))
-                                .height(Length::Fill)
-                                .style(button_style),
-                                container(text("Sources"))
+                                mouse_area(
+                                    button(row![
+                                        svg(iced::advanced::svg::Handle::from_memory(LIST_ICON)),
+                                        text(self.enabled_sources.values().filter(|v| **v).count())
+                                    ])
+                                    .on_press(M(ToggleSourcePage))
+                                    .padding(10)
+                                    .width(Length::FillPortion(1))
+                                    .height(Length::Fill)
+                                    .style(button_style),
+                                )
+                                .on_right_press(M(DisableAllSources)),
+                                container(text("Sources (right click to reset)"))
                                     .padding(5)
                                     .style(|theme: &Theme| {
                                         container::Style {
-                                            background: Some(Background::Color(
-                                                theme.palette().background,
-                                            )),
+                                            background: Some(Background::Color(color!(0xeeeeff))),
                                             border: Border::default()
                                                 .color(theme.palette().primary)
                                                 .rounded(5),
@@ -165,7 +190,7 @@ impl Page for MainPage {
                                         .iter()
                                         .enumerate()
                                         .collect::<Vec<(usize, &Article)>>()
-                                        .chunks(chunks)
+                                        .chunks(article_chunks)
                                         .map(|chunk| {
                                             Into::<Element<'_, Message>>::into(
                                                 Row::with_children(chunk.iter().map(|(i, a)| {
@@ -184,16 +209,7 @@ impl Page for MainPage {
                             .into(),
                         ),
                         // Error message
-                        Some(Err(error)) => Some(
-                            container(column![
-                                text(error).color(color!(0xff0000)).size(32),
-                                button("Back to API key page")
-                                    .style(button_style)
-                                    .on_press(M(BackToApiKeyPage))
-                            ])
-                            .padding(15)
-                            .into(),
-                        ),
+                        Some(Err(error)) => Some(error_element(error)),
                         _ => None,
                     }),
             )
@@ -222,27 +238,94 @@ impl Page for MainPage {
                 _ => None,
             })
             .push_maybe(match &self.source_page {
-                true => Some(column![
-                    (match &self.source_data {
-                        Some(Ok(data)) =>
-                            Column::with_children(data.sources.iter().map(|source| {
-                                source_toggle(
-                                    source,
-                                    self.enabled_sources.get(&source.id).unwrap_or(&false),
+                true => match &self.source_data {
+                    Some(Ok(data)) => Some::<Element<'_, Message>>(
+                        mouse_area(
+                            container(
+                                mouse_area(
+                                    container(column![
+                                        text_input("Filter sources", &self.source_filter)
+                                            .style(text_input_style)
+                                            .width(Length::Fill)
+                                            .size(24)
+                                            .on_input(|s| M(SourceFilterOnInput(s)))
+                                            .id(SOURCE_FILTER_ID),
+                                        horizontal_rule(6),
+                                        {
+                                            // basic filter, this does mean only lowercase works
+                                            let haystack = |s: &Source| {
+                                                format!(
+                                                    "{} {} {}",
+                                                    s.name.to_lowercase(),
+                                                    s.description.to_lowercase(),
+                                                    s.id.to_lowercase()
+                                                )
+                                            };
+
+                                            scrollable(Column::with_children(
+                                                data.sources
+                                                    .iter()
+                                                    .filter(|s| {
+                                                        haystack(s).contains(&self.source_filter)
+                                                    })
+                                                    .collect::<Vec<&Source>>()
+                                                    .chunks(source_chunks)
+                                                    .map(|chunk| {
+                                                        Into::<Element<'_, Message>>::into(
+                                                            Row::with_children(chunk.iter().map(
+                                                                |source| {
+                                                                    source_toggle(
+                                                                        source,
+                                                                        self.enabled_sources
+                                                                            .get(&source.id)
+                                                                            .unwrap_or(&false),
+                                                                    )
+                                                                },
+                                                            ))
+                                                            .spacing(15),
+                                                        )
+                                                    }),
+                                            ))
+                                        }
+                                    ])
+                                    .padding([10, 30]) // top/bottom, left/right
+                                    .width(Length::Fill)
+                                    .style(|theme| {
+                                        container::Style {
+                                            background: Some(Background::Color(
+                                                theme.palette().background,
+                                            )),
+                                            text_color: Some(theme.palette().text),
+                                            border: Border::default()
+                                                .color(theme.palette().primary)
+                                                .rounded(10)
+                                                .width(2),
+                                            ..Default::default()
+                                        }
+                                    }),
                                 )
-                            }))
-                            .into(),
-                        Some(Err(error)) => container(column![
-                            text(error).color(color!(0xff0000)).size(32),
-                            button("Back to API key page")
-                                .style(button_style)
-                                .on_press(M(BackToApiKeyPage))
-                        ])
-                        .padding(15)
+                                .on_press(Message::NoOp),
+                            )
+                            .padding(20)
+                            .width(Length::Fill)
+                            .height(Length::Fill)
+                            .center(Length::Fill)
+                            .align_x(Alignment::Center)
+                            .align_y(Alignment::Center)
+                            .style(|_theme| container::Style {
+                                background: None,
+                                ..Default::default()
+                            }),
+                        )
+                        .interaction(iced::mouse::Interaction::Idle)
+                        .on_right_press(M(ToggleSourcePage))
+                        .on_press(M(ToggleSourcePage))
                         .into(),
-                        _ => Into::<Element<'_, Message>>::into(Space::with_width(1)),
-                    })
-                ]),
+                    ),
+
+                    Some(Err(error)) => Some::<Element<'_, Message>>(error_element(error).into()),
+                    _ => None,
+                },
                 false => None,
             })
             .into()
@@ -255,6 +338,7 @@ impl Page for MainPage {
         if let Message::MainPage(message) = message {
             match message {
                 SearchBarOnInput(s) => self.search_query = s,
+                SourceFilterOnInput(s) => self.source_filter = s,
                 SearchSubmit => {
                     let client = self.client.clone();
                     let query = self.search_query.clone();
@@ -307,10 +391,22 @@ impl Page for MainPage {
                 }
                 SourceToggled(id, state) => {
                     self.enabled_sources.insert(id, state);
-                    ()
+                    // refocus input box
+                    return Action::Task(focus(SOURCE_FILTER_ID));
                 }
+                DisableAllSources => {
+                    for i in self.enabled_sources.values_mut() {
+                        *i = false;
+                    }
+                }
+
                 ToggleSourcePage => {
                     self.source_page = !self.source_page;
+                    if self.source_page {
+                        return Action::Task(focus(SOURCE_FILTER_ID));
+                    } else {
+                        return Action::Task(focus(SEARCH_BAR_ID));
+                    }
                 }
                 ImageLoaded(data) => {
                     if let Some((i, handle)) = data {

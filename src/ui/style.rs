@@ -8,6 +8,7 @@ use iced::Vector;
 use iced::widget::button;
 use iced::widget::button::Status;
 use iced::widget::text_input;
+use std::f32::consts::FRAC_PI_4;
 
 pub const SEARCH_ICON: &[u8] =
     include_bytes!("../../assets/material-icons/search_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg");
@@ -102,7 +103,7 @@ pub fn card_style(theme: &Theme, status: button::Status) -> button::Style {
 
     button::Style {
         background: Some(Background::Gradient(Gradient::Linear(
-            iced::gradient::Linear::new(-0.785398)
+            iced::gradient::Linear::new(FRAC_PI_4)
                 .add_stop(0.0, start)
                 .add_stop(1.0, end),
         ))),

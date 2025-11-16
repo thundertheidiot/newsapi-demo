@@ -2,7 +2,7 @@ use crate::newsapi::source::Source;
 use crate::ui::Message;
 use crate::ui::main_page::MainPageMessage;
 use iced::widget::{column, container, mouse_area, row, text, toggler};
-use iced::{Color, Element};
+use iced::{Color, Element, Length};
 
 pub fn source_toggle<'a>(source: &'a Source, is_enabled: &bool) -> Element<'a, Message> {
     column![
@@ -19,7 +19,9 @@ pub fn source_toggle<'a>(source: &'a Source, is_enabled: &bool) -> Element<'a, M
         mouse_area(container(
             text(&source.url).color(Color::from_rgb(0.0, 0.5, 0.7))
         ))
+        .interaction(iced::mouse::Interaction::Pointer)
         .on_press(Message::OpenLink(source.url.clone()))
     ]
+    .width(Length::Fill)
     .into()
 }

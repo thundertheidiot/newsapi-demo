@@ -289,9 +289,10 @@ impl Page for MainPage {
                                                         )
                                                     }),
                                             ))
+                                            .spacing(5)
                                         }
                                     ])
-                                    .padding([10, 30]) // top/bottom, left/right
+                                    .padding([10, 10]) // top/bottom, left/right
                                     .width(Length::Fill)
                                     .style(|theme| {
                                         container::Style {
@@ -309,7 +310,7 @@ impl Page for MainPage {
                                 )
                                 .on_press(Message::NoOp),
                             )
-                            .padding(20)
+                            .padding(40)
                             .width(Length::Fill)
                             .height(Length::Fill)
                             .center(Length::Fill)

@@ -11,6 +11,7 @@ use iced::widget::text_input::focus;
 
 mod article;
 mod main_page;
+mod source;
 mod style;
 mod token_page;
 

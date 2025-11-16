@@ -1,6 +1,8 @@
 pub mod article;
+pub mod source;
 
 use crate::newsapi::article::Article;
+use crate::newsapi::source::Source;
 use reqwest::Client;
 use serde::Deserialize;
 use thiserror::Error;
@@ -32,13 +34,21 @@ pub enum NewsAPIError {
     HeaderValue(#[from] reqwest::header::InvalidHeaderValue),
 }
 
-// both endpoints share this format
+// the top-headlines and everything endpoints share this response format
 #[derive(Debug, Deserialize, Clone)]
-pub struct NewsAPISuccess {
+pub struct NewsAPIArticlesSuccess {
     pub status: String,
     #[serde(rename(deserialize = "totalResults"))]
     pub total_results: i32,
+    #[serde(default)]
     pub articles: Vec<Article>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct NewsAPISourcesSuccess {
+    pub status: String,
+    #[serde(default)]
+    pub sources: Vec<Source>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -50,16 +60,16 @@ pub struct NewsAPIFail {
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
-pub enum NewsAPIResponse {
-    Success(NewsAPISuccess),
+pub enum NewsAPIArticleResponse {
+    Success(NewsAPIArticlesSuccess),
     Fail(NewsAPIFail),
 }
 
-impl From<NewsAPIResponse> for Result<NewsAPISuccess, NewsAPIError> {
-    fn from(val: NewsAPIResponse) -> Self {
+impl From<NewsAPIArticleResponse> for Result<NewsAPIArticlesSuccess, NewsAPIError> {
+    fn from(val: NewsAPIArticleResponse) -> Self {
         match val {
-            NewsAPIResponse::Success(v) => Ok(v),
-            NewsAPIResponse::Fail(e) => Err(NewsAPIError::Api {
+            NewsAPIArticleResponse::Success(v) => Ok(v),
+            NewsAPIArticleResponse::Fail(e) => Err(NewsAPIError::Api {
                 code: e.code,
                 message: e.message,
             }),
@@ -67,24 +77,72 @@ impl From<NewsAPIResponse> for Result<NewsAPISuccess, NewsAPIError> {
     }
 }
 
-pub async fn fetch_top(client: &Client) -> Result<NewsAPISuccess, NewsAPIError> {
-    client
-        .get("https://newsapi.org/v2/top-headlines")
-        .query(&[("category", "general")])
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum NewsAPISourceResponse {
+    Success(NewsAPISourcesSuccess),
+    Fail(NewsAPIFail),
+}
+
+impl From<NewsAPISourceResponse> for Result<NewsAPISourcesSuccess, NewsAPIError> {
+    fn from(val: NewsAPISourceResponse) -> Self {
+        match val {
+            NewsAPISourceResponse::Success(v) => Ok(v),
+            NewsAPISourceResponse::Fail(e) => Err(NewsAPIError::Api {
+                code: e.code,
+                message: e.message,
+            }),
+        }
+    }
+}
+
+pub async fn fetch_top(
+    client: &Client,
+    sources: Option<String>,
+) -> Result<NewsAPIArticlesSuccess, NewsAPIError> {
+    let request = client.get("https://newsapi.org/v2/top-headlines");
+
+    let request = match sources.as_deref() {
+        None => request.query(&[("category", "general")]),
+        Some("") => request.query(&[("category", "general")]),
+        Some(s) => request.query(&[("sources", s)]),
+    };
+
+    request
         .send()
         .await?
-        .json::<NewsAPIResponse>()
+        .json::<NewsAPIArticleResponse>()
         .await?
         .into()
 }
 
-pub async fn search(client: &Client, query: &str) -> Result<NewsAPISuccess, NewsAPIError> {
-    client
-        .get("https://newsapi.org/v2/top-headlines")
-        .query(&[("q", query)])
+pub async fn search_articles(
+    client: &Client,
+    query: &str,
+    sources: Option<String>,
+) -> Result<NewsAPIArticlesSuccess, NewsAPIError> {
+    let request = client.get("https://newsapi.org/v2/everything");
+
+    let request = match sources.as_deref() {
+        None => request.query(&[("q", query)]),
+        Some("") => request.query(&[("q", query)]),
+        Some(s) => request.query(&[("q", query), ("sources", s)]),
+    };
+
+    request
         .send()
         .await?
-        .json::<NewsAPIResponse>()
+        .json::<NewsAPIArticleResponse>()
+        .await?
+        .into()
+}
+
+pub async fn fetch_sources(client: &Client) -> Result<NewsAPISourcesSuccess, NewsAPIError> {
+    client
+        .get("https://newsapi.org/v2/top-headlines/sources")
+        .send()
+        .await?
+        .json::<NewsAPISourceResponse>()
         .await?
         .into()
 }

@@ -1,4 +1,5 @@
 use crate::fetch_top;
+use crate::newsapi::fetch_sources;
 use crate::ui::style::SUBMIT_ICON;
 use crate::ui::style::text_input_style;
 use iced::Length;
@@ -85,19 +86,39 @@ impl Page for TokenPage {
                 }
                 Submit => match MainPage::new(self.token.clone()) {
                     Ok(page) => {
-                        // need to pass this into an async move block
-                        let client = page.client.clone();
+                        // need to pass these into async move blocks, client is a shallow clone
+                        let search_client = page.client.clone();
+                        let source_client = page.client.clone();
 
                         return Action::SwitchPage((
                             Box::new(page),
                             Task::batch(vec![
                                 focus(SEARCH_BAR_ID),
-                                // begin fetching the top headlines right away
+                                // begin fetching the top headlines
                                 Task::perform(
-                                    async move { fetch_top(&client).await.map_err(|e| e.to_string()) },
+                                    async move {
+                                        fetch_top(&search_client, None)
+                                            .await
+                                            .map_err(|e| e.to_string())
+                                    },
                                     |v| {
                                         Message::MainPage(
                                             crate::ui::main_page::MainPageMessage::SearchComplete(
+                                                v,
+                                            ),
+                                        )
+                                    },
+                                ),
+                                // begin fetching sources
+                                Task::perform(
+                                    async move {
+                                        fetch_sources(&source_client)
+                                            .await
+                                            .map_err(|e| e.to_string())
+                                    },
+                                    |v| {
+                                        Message::MainPage(
+                                            crate::ui::main_page::MainPageMessage::SourcesFetched(
                                                 v,
                                             ),
                                         )

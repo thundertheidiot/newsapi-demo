@@ -16,6 +16,9 @@ pub const SUBMIT_ICON: &[u8] = include_bytes!(
 );
 pub const CLOSE_ICON: &[u8] =
     include_bytes!("../../assets/material-icons/close_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg");
+pub const LIST_ICON: &[u8] = include_bytes!(
+    "../../assets/material-icons/format_list_bulleted_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg"
+);
 
 pub fn button_style(theme: &Theme, status: button::Status) -> button::Style {
     let palette = theme.palette();

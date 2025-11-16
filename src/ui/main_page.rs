@@ -19,6 +19,7 @@ use iced::Alignment;
 use iced::Background;
 use iced::Border;
 use iced::Color;
+use iced::Event;
 use iced::Theme;
 use iced::color;
 use iced::widget::Row;
@@ -206,6 +207,7 @@ impl Page for MainPage {
                             )
                             .spacing(5)
                             .height(Length::Fill)
+                            .width(Length::Fill)
                             .into(),
                         ),
                         // Error message
@@ -249,6 +251,7 @@ impl Page for MainPage {
                                             .width(Length::Fill)
                                             .size(24)
                                             .on_input(|s| M(SourceFilterOnInput(s)))
+                                            .on_submit(M(ToggleSourcePage))
                                             .id(SOURCE_FILTER_ID),
                                         horizontal_rule(6),
                                         {
@@ -323,7 +326,7 @@ impl Page for MainPage {
                         .into(),
                     ),
 
-                    Some(Err(error)) => Some::<Element<'_, Message>>(error_element(error).into()),
+                    Some(Err(error)) => Some::<Element<'_, Message>>(error_element(error)),
                     _ => None,
                 },
                 false => None,
@@ -334,6 +337,19 @@ impl Page for MainPage {
     fn update(&mut self, message: Message) -> Action {
         use MainPageMessage::*;
         use Message::MainPage as M;
+
+        // handle escape key
+        if let Message::Escape = message {
+            if self.active_article.is_some() {
+                self.active_article = None;
+            }
+
+            if self.source_page {
+                self.source_page = false;
+            }
+
+            return Action::Task(focus(SEARCH_BAR_ID));
+        }
 
         if let Message::MainPage(message) = message {
             match message {
@@ -389,22 +405,25 @@ impl Page for MainPage {
 
                     self.source_data = Some(v);
                 }
+                // Toggle specific source
                 SourceToggled(id, state) => {
                     self.enabled_sources.insert(id, state);
                     // refocus input box
                     return Action::Task(focus(SOURCE_FILTER_ID));
                 }
+                // Reset source filter
                 DisableAllSources => {
                     for i in self.enabled_sources.values_mut() {
                         *i = false;
                     }
                 }
-
+                // Toggle the source filter page
                 ToggleSourcePage => {
                     self.source_page = !self.source_page;
                     if self.source_page {
                         return Action::Task(focus(SOURCE_FILTER_ID));
                     } else {
+                        self.source_filter = String::new();
                         return Action::Task(focus(SEARCH_BAR_ID));
                     }
                 }

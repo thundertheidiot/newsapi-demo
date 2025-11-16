@@ -7,6 +7,7 @@ use iced::Event;
 use iced::Subscription;
 use iced::Task;
 use iced::event;
+use iced::keyboard::key::Named;
 use iced::widget::text_input::focus;
 
 mod article;
@@ -25,7 +26,8 @@ pub enum Message {
     TokenPage(TokenPageMessage),
     MainPage(MainPageMessage),
     OpenLink(String),
-    Event(Event),
+    Resized(f32, f32),
+    Escape,
     NoOp,
 }
 
@@ -58,14 +60,8 @@ impl App {
     pub fn update(&mut self, message: Message) -> Task<Message> {
         use Action::*;
 
-        if let Message::Event(event) = message {
-            match event {
-                iced::Event::Window(iced::window::Event::Resized(size)) => {
-                    self.window_size = (size.width, size.height);
-                }
-                _ => (),
-            }
-
+        if let Message::Resized(w, h) = message {
+            self.window_size = (w, h);
             return iced::Task::none();
         }
 
@@ -91,6 +87,13 @@ impl App {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        event::listen().map(Message::Event)
+        Subscription::batch([
+            iced::window::resize_events()
+                .map(|(_id, size)| Message::Resized(size.width, size.height)),
+            iced::keyboard::on_key_press(|key, _mods| match key {
+                iced::keyboard::Key::Named(Named::Escape) => Some(Message::Escape),
+                _ => None,
+            }),
+        ])
     }
 }

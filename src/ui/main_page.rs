@@ -38,7 +38,7 @@ use reqwest::header::HeaderMap;
 use reqwest::header::HeaderValue;
 
 pub struct MainPage {
-    client: Client,
+    pub client: Client,
     search_query: String,
     search_result: Option<Result<NewsAPISuccess, String>>,
     images_loaded: Vec<Option<Handle>>,

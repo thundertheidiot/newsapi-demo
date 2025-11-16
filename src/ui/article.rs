@@ -1,3 +1,6 @@
+use chrono::DateTime;
+use chrono::Local;
+use chrono::Utc;
 use iced::Alignment;
 use iced::Background;
 use iced::Border;
@@ -94,6 +97,15 @@ pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element
                                 (None, Some(source)) => Some(text(source.to_string()).size(16)),
                                 _ => None,
                             })
+                            .push_maybe(article.published_at.as_ref().map(|t| {
+                                if let Ok(dt) = t.parse::<DateTime<Utc>>() {
+                                    let local: DateTime<Local> = DateTime::from(dt);
+
+                                    text(local.format("%A, %B %d, %Y at %H:%M").to_string())
+                                } else {
+                                    text("Invalid timestamp")
+                                }
+                            }))
                             .push(horizontal_rule(6))
                             .push_maybe(
                                 article

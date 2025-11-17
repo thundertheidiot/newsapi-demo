@@ -5,6 +5,7 @@ use iced::Background;
 use iced::Border;
 use iced::Theme;
 use iced::color;
+use iced::widget::text::Shaping::Advanced;
 use iced::widget::{column, container, mouse_area, row, text, toggler, tooltip};
 use iced::{Color, Element, Length};
 
@@ -26,13 +27,15 @@ pub fn source_toggle<'a>(source: &'a Source, is_enabled: &bool) -> Element<'a, M
                     .size(24)
             ],
             mouse_area(container(
-                text(&source.url).color(Color::from_rgb(0.0, 0.5, 0.7))
+                text(&source.url)
+                    .color(Color::from_rgb(0.0, 0.5, 0.7))
+                    .shaping(Advanced)
             ))
             .interaction(iced::mouse::Interaction::Pointer)
             .on_press(Message::OpenLink(source.url.clone()))
         ]
         .width(Length::Fill),
-        container(text(&source.description))
+        container(text(&source.description).shaping(Advanced))
             .padding(5)
             .max_width(500.0)
             .style(|theme: &Theme| container::Style {

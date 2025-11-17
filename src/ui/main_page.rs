@@ -104,12 +104,12 @@ fn top_bar<'a>(search_query: &'a String, n_sources: usize) -> Element<'a, Messag
             .on_submit(M(SearchSubmit))
             .id(SEARCH_BAR_ID) // id for focus task
             .style(text_input_style)
-            .width(Length::FillPortion(19))
+            .width(Length::Fill)
             .size(24),
         button(svg(iced::advanced::svg::Handle::from_memory(SEARCH_ICON)))
             .on_press(M(SearchSubmit))
             .padding(10)
-            .width(Length::FillPortion(1))
+            .width(48)
             .height(Length::Fill)
             .style(button_style),
         tooltip(
@@ -120,7 +120,7 @@ fn top_bar<'a>(search_query: &'a String, n_sources: usize) -> Element<'a, Messag
                 ])
                 .on_press(M(ToggleSourcePage))
                 .padding(10)
-                .width(Length::FillPortion(1))
+                .width(64)
                 .height(Length::Fill)
                 .style(button_style),
             )
@@ -244,7 +244,7 @@ fn source_page<'a>(
                             row![
                                 text_input("Filter sources", source_filter)
                                     .style(text_input_style)
-                                    .width(Length::FillPortion(19))
+                                    .width(Length::Fill)
                                     .size(24)
                                     .on_input(|s| M(SourceFilterOnInput(s)))
                                     .on_submit(M(ToggleSourcePage))
@@ -252,7 +252,7 @@ fn source_page<'a>(
                                 button(
                                     svg(svg::Handle::from_memory(CLOSE_ICON)).height(Length::Fill)
                                 )
-                                .width(Length::FillPortion(1))
+                                .width(48)
                                 .height(Length::Fill)
                                 .style(close_button_style)
                                 .on_press(M(ToggleSourcePage)),

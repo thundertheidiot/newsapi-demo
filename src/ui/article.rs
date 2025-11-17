@@ -22,6 +22,7 @@ use iced::widget::image::Handle;
 use iced::widget::mouse_area;
 use iced::widget::scrollable;
 use iced::widget::svg;
+use iced::widget::text::Shaping::Advanced;
 use sha2::Digest;
 use sha2::Sha256;
 use std::env::temp_dir;
@@ -52,6 +53,7 @@ pub fn article_to_card<'a>(
     let content: Column<'_, Message> = Column::with_capacity(2)
         .push(
             text(&article.title)
+                .shaping(Advanced)
                 .size(18)
                 .width(Length::Fill)
                 .style(|_theme| text::Style {
@@ -98,7 +100,7 @@ pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element
                 .push(
                     scrollable(
                         Column::<Message, Theme>::with_capacity(9)
-                            .push(text(&article.title).size(44))
+                            .push(text(&article.title).size(44).shaping(Advanced))
                             .push(
                                 container(match &image {
                                     Some(img) => Into::<Element<'a, Message>>::into(
@@ -109,9 +111,11 @@ pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element
                                 .max_height(1000),
                             )
                             .push_maybe(match (&article.author, &article.source.name) {
-                                (Some(author), Some(source)) => {
-                                    Some(text(format!("{author} - {source}")).size(16))
-                                }
+                                (Some(author), Some(source)) => Some(
+                                    text(format!("{author} - {source}"))
+                                        .size(16)
+                                        .shaping(Advanced),
+                                ),
                                 (None, Some(source)) => Some(text(source.to_string()).size(16)),
                                 _ => None,
                             })
@@ -126,16 +130,15 @@ pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element
                             }))
                             .push(horizontal_rule(6))
                             .push_maybe(
-                                article
-                                    .description
-                                    .as_ref()
-                                    .map(|description| text(description).size(32)),
+                                article.description.as_ref().map(|description| {
+                                    text(description).size(32).shaping(Advanced)
+                                }),
                             )
                             .push_maybe(
                                 article
                                     .content
                                     .as_ref()
-                                    .map(|content| text(content).size(20)),
+                                    .map(|content| text(content).size(20).shaping(Advanced)),
                             )
                             .push_maybe(match (&article.description, &article.content) {
                                 (Some(_), _) | (_, Some(_)) => Some(horizontal_rule(6)),

@@ -91,6 +91,231 @@ fn error_element<'a>(error: &'a str) -> Element<'a, Message> {
     .into()
 }
 
+/// Top bar containing the search bar and buttons
+fn top_bar<'a>(search_query: &'a String, n_sources: usize) -> Element<'a, Message> {
+    use MainPageMessage::*;
+    use Message::MainPage as M;
+
+    row![
+        text_input("Search for articles", search_query)
+            .on_input(|s| M(SearchBarOnInput(s)))
+            .on_submit(M(SearchSubmit))
+            .id(SEARCH_BAR_ID) // id for focus task
+            .style(text_input_style)
+            .width(Length::FillPortion(19))
+            .size(24),
+        button(svg(iced::advanced::svg::Handle::from_memory(SEARCH_ICON)))
+            .on_press(M(SearchSubmit))
+            .padding(10)
+            .width(Length::FillPortion(1))
+            .height(Length::Fill)
+            .style(button_style),
+        tooltip(
+            mouse_area(
+                button(row![
+                    svg(iced::advanced::svg::Handle::from_memory(LIST_ICON)),
+                    text(n_sources)
+                ])
+                .on_press(M(ToggleSourcePage))
+                .padding(10)
+                .width(Length::FillPortion(1))
+                .height(Length::Fill)
+                .style(button_style),
+            )
+            .on_right_press(M(DisableAllSources)),
+            container(text("Sources (right click to reset)"))
+                .padding(5)
+                .style(|theme: &Theme| {
+                    container::Style {
+                        background: Some(Background::Color(color!(0xeeeeff))),
+                        border: Border::default().color(theme.palette().primary).rounded(5),
+                        ..Default::default()
+                    }
+                }),
+            tooltip::Position::Bottom,
+        )
+    ]
+    .height(Length::Fixed(72.0))
+    .spacing(5)
+    .padding(15)
+    .into()
+}
+
+/// List of article cards
+/// If `search_result` is Some(Ok(data)), the cards will be shown
+/// If `search_result` is Some(Err(e)), an error will be shown
+/// If `search_result` is None (at the start of the program), nothing will be shown
+fn article_cards<'a>(
+    search_result: &'a Option<Result<NewsAPIArticlesSuccess, String>>,
+    article_chunks: usize,
+    images_loaded: &'a Vec<Option<Handle>>,
+) -> Option<Element<'a, Message>> {
+    match search_result {
+        Some(Ok(data)) => Some::<Element<'a, Message>>(
+            scrollable(
+                Column::with_children(
+                    data.articles
+                        .iter()
+                        .enumerate()
+                        .collect::<Vec<(usize, &Article)>>()
+                        .chunks(article_chunks)
+                        .map(|chunk| {
+                            Into::<Element<'_, Message>>::into(
+                                Row::with_children(
+                                    chunk
+                                        .iter()
+                                        .map(|(i, a)| article_to_card(*i, a, &images_loaded[*i])),
+                                )
+                                .spacing(10)
+                                .align_y(Alignment::Center),
+                            )
+                        }),
+                )
+                .spacing(5)
+                .padding(5),
+            )
+            .spacing(5)
+            .height(Length::Fill)
+            .width(Length::Fill)
+            .into(),
+        ),
+        Some(Err(error)) => Some(error_element(error)),
+        None => None,
+    }
+}
+
+fn article_page<'a>(
+    active_article: &'a Option<usize>,
+    search_result: &'a Option<Result<NewsAPIArticlesSuccess, String>>,
+    images_loaded: &'a Vec<Option<Handle>>,
+) -> Option<Element<'a, Message>> {
+    use MainPageMessage::*;
+    use Message::MainPage as M;
+
+    match (active_article, search_result) {
+        (Some(index), Some(Ok(data))) => Some::<Element<'a, Message>>(
+            mouse_area(
+                container(article_view(&data.articles[*index], &images_loaded[*index]))
+                    .padding(20)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .center(Length::Fill)
+                    .align_x(Alignment::Center)
+                    .align_y(Alignment::Center)
+                    .style(|_theme| container::Style {
+                        background: None,
+                        ..Default::default()
+                    }),
+            )
+            .interaction(iced::mouse::Interaction::Idle)
+            .on_right_press(M(ActiveArticle(None)))
+            .on_press(M(ActiveArticle(None)))
+            .into(),
+        ),
+        // TODO error handling here
+        // though it should be impossible to reach another state
+        _ => None,
+    }
+}
+
+/// Source filtering menu
+fn source_page<'a>(
+    source_page: bool,
+    source_data: &'a Option<Result<NewsAPISourcesSuccess, String>>,
+    enabled_sources: &'a HashMap<String, bool>,
+    source_chunks: usize,
+    source_filter: &'a String,
+) -> Option<Element<'a, Message>> {
+    use MainPageMessage::*;
+    use Message::MainPage as M;
+
+    if !source_page {
+        return None;
+    }
+
+    match source_data {
+        Some(Ok(data)) => Some(
+            mouse_area(
+                container(
+                    mouse_area(
+                        container(column![
+                            text_input("Filter sources", source_filter)
+                                .style(text_input_style)
+                                .width(Length::Fill)
+                                .size(24)
+                                .on_input(|s| M(SourceFilterOnInput(s)))
+                                .on_submit(M(ToggleSourcePage))
+                                .id(SOURCE_FILTER_ID),
+                            horizontal_rule(6),
+                            {
+                                // basic filter, this does mean only lowercase works
+                                let haystack = |s: &Source| {
+                                    format!(
+                                        "{} {} {}",
+                                        s.name.to_lowercase(),
+                                        s.description.to_lowercase(),
+                                        s.id.to_lowercase()
+                                    )
+                                };
+
+                                scrollable(Column::with_children(
+                                    data.sources
+                                        .iter()
+                                        .filter(|s| haystack(s).contains(source_filter))
+                                        .collect::<Vec<&Source>>()
+                                        .chunks(source_chunks)
+                                        .map(|chunk| {
+                                            Into::<Element<'_, Message>>::into(
+                                                Row::with_children(chunk.iter().map(|source| {
+                                                    source_toggle(
+                                                        source,
+                                                        enabled_sources
+                                                            .get(&source.id)
+                                                            .unwrap_or(&false),
+                                                    )
+                                                }))
+                                                .spacing(15),
+                                            )
+                                        }),
+                                ))
+                                .spacing(5)
+                            }
+                        ])
+                        .padding([10, 10]) // top/bottom, left/right
+                        .width(Length::Fill)
+                        .style(|theme| container::Style {
+                            background: Some(Background::Color(theme.palette().background)),
+                            text_color: Some(theme.palette().text),
+                            border: Border::default()
+                                .color(theme.palette().primary)
+                                .rounded(10)
+                                .width(2),
+                            ..Default::default()
+                        }),
+                    )
+                    .on_press(Message::NoOp),
+                )
+                .padding(40)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .center(Length::Fill)
+                .align_x(Alignment::Center)
+                .align_y(Alignment::Center)
+                .style(|_theme| container::Style {
+                    background: None,
+                    ..Default::default()
+                }),
+            )
+            .interaction(iced::mouse::Interaction::Idle)
+            .on_right_press(M(ToggleSourcePage))
+            .on_press(M(ToggleSourcePage))
+            .into(),
+        ),
+        Some(Err(error)) => Some(error_element(error)),
+        None => None,
+    }
+}
+
 impl MainPage {
     pub fn new(token: String) -> Result<Self, NewsAPIError> {
         let mut headers = HeaderMap::new();
@@ -117,9 +342,6 @@ impl MainPage {
 
 impl Page for MainPage {
     fn view(&self, size: (f32, f32)) -> Element<'_, Message> {
-        use MainPageMessage::*;
-        use Message::MainPage as M;
-
         let w = size.0;
         let mut article_chunks = (w / 400.0).floor() as usize;
         if article_chunks < 1 {
@@ -130,208 +352,35 @@ impl Page for MainPage {
             source_chunks = 1;
         }
 
-        Stack::with_capacity(3)
+        Stack::with_capacity(3) // allocate max
+            // bottom layer
+            // has top bar and article card list
             .push(
-                Column::with_capacity(2) // allocate biggest possible capacity
-                    .push(
-                        // search bar component
-                        row![
-                            text_input("Search for articles", &self.search_query)
-                                .on_input(|s| M(SearchBarOnInput(s)))
-                                .on_submit(M(SearchSubmit))
-                                .id(SEARCH_BAR_ID) // id for focus task
-                                .style(text_input_style)
-                                .width(Length::FillPortion(19))
-                                .size(24),
-                            button(svg(iced::advanced::svg::Handle::from_memory(SEARCH_ICON)))
-                                .on_press(M(SearchSubmit))
-                                .padding(10)
-                                .width(Length::FillPortion(1))
-                                .height(Length::Fill)
-                                .style(button_style),
-                            tooltip(
-                                mouse_area(
-                                    button(row![
-                                        svg(iced::advanced::svg::Handle::from_memory(LIST_ICON)),
-                                        text(self.enabled_sources.values().filter(|v| **v).count())
-                                    ])
-                                    .on_press(M(ToggleSourcePage))
-                                    .padding(10)
-                                    .width(Length::FillPortion(1))
-                                    .height(Length::Fill)
-                                    .style(button_style),
-                                )
-                                .on_right_press(M(DisableAllSources)),
-                                container(text("Sources (right click to reset)"))
-                                    .padding(5)
-                                    .style(|theme: &Theme| {
-                                        container::Style {
-                                            background: Some(Background::Color(color!(0xeeeeff))),
-                                            border: Border::default()
-                                                .color(theme.palette().primary)
-                                                .rounded(5),
-                                            ..Default::default()
-                                        }
-                                    }),
-                                tooltip::Position::Bottom,
-                            )
-                        ]
-                        .height(Length::Fixed(72.0))
-                        .spacing(5)
-                        .padding(15),
-                    )
-                    // only show list of article cards if search result exists
-                    // it will be None at the start
-                    .push_maybe(match &self.search_result {
-                        // scrollable list of article cards
-                        Some(Ok(data)) => Some::<Element<'_, Message>>(
-                            scrollable(
-                                Column::with_children(
-                                    data.articles
-                                        .iter()
-                                        .enumerate()
-                                        .collect::<Vec<(usize, &Article)>>()
-                                        .chunks(article_chunks)
-                                        .map(|chunk| {
-                                            Into::<Element<'_, Message>>::into(
-                                                Row::with_children(chunk.iter().map(|(i, a)| {
-                                                    article_to_card(*i, a, &self.images_loaded[*i])
-                                                }))
-                                                .spacing(10)
-                                                .align_y(Alignment::Center),
-                                            )
-                                        }),
-                                )
-                                .spacing(5)
-                                .padding(5),
-                            )
-                            .spacing(5)
-                            .height(Length::Fill)
-                            .width(Length::Fill)
-                            .into(),
-                        ),
-                        // Error message
-                        Some(Err(error)) => Some(error_element(error)),
-                        _ => None,
-                    }),
+                Column::with_capacity(2) // allocate max
+                    .push(top_bar(
+                        &self.search_query,
+                        self.enabled_sources.values().filter(|v| **v).count(),
+                    ))
+                    .push_maybe(article_cards(
+                        &self.search_result,
+                        article_chunks,
+                        &self.images_loaded,
+                    )),
             )
-            .push_maybe(match (self.active_article, &self.search_result) {
-                (Some(index), Some(Ok(data))) => Some(
-                    mouse_area(
-                        container(article_view(
-                            &data.articles[index],
-                            &self.images_loaded[index],
-                        ))
-                        .padding(20)
-                        .width(Length::Fill)
-                        .height(Length::Fill)
-                        .center(Length::Fill)
-                        .align_x(Alignment::Center)
-                        .align_y(Alignment::Center)
-                        .style(|_theme| container::Style {
-                            background: None,
-                            ..Default::default()
-                        }),
-                    )
-                    .interaction(iced::mouse::Interaction::Idle)
-                    .on_right_press(M(ActiveArticle(None)))
-                    .on_press(M(ActiveArticle(None))),
-                ),
-                _ => None,
-            })
-            .push_maybe(match &self.source_page {
-                true => match &self.source_data {
-                    Some(Ok(data)) => Some::<Element<'_, Message>>(
-                        mouse_area(
-                            container(
-                                mouse_area(
-                                    container(column![
-                                        text_input("Filter sources", &self.source_filter)
-                                            .style(text_input_style)
-                                            .width(Length::Fill)
-                                            .size(24)
-                                            .on_input(|s| M(SourceFilterOnInput(s)))
-                                            .on_submit(M(ToggleSourcePage))
-                                            .id(SOURCE_FILTER_ID),
-                                        horizontal_rule(6),
-                                        {
-                                            // basic filter, this does mean only lowercase works
-                                            let haystack = |s: &Source| {
-                                                format!(
-                                                    "{} {} {}",
-                                                    s.name.to_lowercase(),
-                                                    s.description.to_lowercase(),
-                                                    s.id.to_lowercase()
-                                                )
-                                            };
-
-                                            scrollable(Column::with_children(
-                                                data.sources
-                                                    .iter()
-                                                    .filter(|s| {
-                                                        haystack(s).contains(&self.source_filter)
-                                                    })
-                                                    .collect::<Vec<&Source>>()
-                                                    .chunks(source_chunks)
-                                                    .map(|chunk| {
-                                                        Into::<Element<'_, Message>>::into(
-                                                            Row::with_children(chunk.iter().map(
-                                                                |source| {
-                                                                    source_toggle(
-                                                                        source,
-                                                                        self.enabled_sources
-                                                                            .get(&source.id)
-                                                                            .unwrap_or(&false),
-                                                                    )
-                                                                },
-                                                            ))
-                                                            .spacing(15),
-                                                        )
-                                                    }),
-                                            ))
-                                            .spacing(5)
-                                        }
-                                    ])
-                                    .padding([10, 10]) // top/bottom, left/right
-                                    .width(Length::Fill)
-                                    .style(|theme| {
-                                        container::Style {
-                                            background: Some(Background::Color(
-                                                theme.palette().background,
-                                            )),
-                                            text_color: Some(theme.palette().text),
-                                            border: Border::default()
-                                                .color(theme.palette().primary)
-                                                .rounded(10)
-                                                .width(2),
-                                            ..Default::default()
-                                        }
-                                    }),
-                                )
-                                .on_press(Message::NoOp),
-                            )
-                            .padding(40)
-                            .width(Length::Fill)
-                            .height(Length::Fill)
-                            .center(Length::Fill)
-                            .align_x(Alignment::Center)
-                            .align_y(Alignment::Center)
-                            .style(|_theme| container::Style {
-                                background: None,
-                                ..Default::default()
-                            }),
-                        )
-                        .interaction(iced::mouse::Interaction::Idle)
-                        .on_right_press(M(ToggleSourcePage))
-                        .on_press(M(ToggleSourcePage))
-                        .into(),
-                    ),
-
-                    Some(Err(error)) => Some::<Element<'_, Message>>(error_element(error)),
-                    _ => None,
-                },
-                false => None,
-            })
+            // detailed article page
+            .push_maybe(article_page(
+                &self.active_article,
+                &self.search_result,
+                &self.images_loaded,
+            ))
+            // detailed source page
+            .push_maybe(source_page(
+                self.source_page,
+                &self.source_data,
+                &self.enabled_sources,
+                source_chunks,
+                &self.source_filter,
+            ))
             .into()
     }
 

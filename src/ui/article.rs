@@ -1,3 +1,4 @@
+use crate::ui::style::no_image;
 use chrono::DateTime;
 use chrono::Local;
 use chrono::Utc;
@@ -6,6 +7,7 @@ use iced::Background;
 use iced::Border;
 use iced::Color;
 use iced::Font;
+use iced::Gradient;
 use iced::Length::Shrink;
 use iced::Shadow;
 use iced::Vector;
@@ -23,6 +25,7 @@ use iced::widget::svg;
 use sha2::Digest;
 use sha2::Sha256;
 use std::env::temp_dir;
+use std::f32::consts::FRAC_PI_4;
 use std::fs::create_dir;
 use std::path::PathBuf;
 
@@ -31,6 +34,7 @@ use crate::newsapi::article::Article;
 use crate::ui::Message;
 use crate::ui::main_page::MainPageMessage;
 use crate::ui::style::CLOSE_ICON;
+use crate::ui::style::NO_IMAGE_ICON;
 use crate::ui::style::button_style;
 use crate::ui::style::card_style;
 use crate::ui::style::close_button_style;
@@ -54,7 +58,15 @@ pub fn article_to_card<'a>(
                     color: Some(Color::from_rgb(0.1, 0.1, 0.1)),
                 }),
         )
-        .push_maybe(image.as_ref().map(Image::new));
+        .push(
+            container(match &image {
+                Some(img) => {
+                    Into::<Element<'a, Message>>::into(Image::new(img).width(Length::Fill))
+                }
+                None => no_image(),
+            })
+            .max_height(250),
+        );
 
     Button::new(
         container(content.spacing(5)).width(Length::FillPortion(1)), // .max_height(200),
@@ -87,8 +99,14 @@ pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element
                     scrollable(
                         Column::<Message, Theme>::with_capacity(9)
                             .push(text(&article.title).size(44))
-                            .push_maybe(
-                                image.as_ref().map(|image| Image::new(image).height(Shrink)),
+                            .push(
+                                container(match &image {
+                                    Some(img) => Into::<Element<'a, Message>>::into(
+                                        Image::new(img).height(Shrink),
+                                    ),
+                                    None => container(no_image()).height(500).into(),
+                                })
+                                .max_height(1000),
                             )
                             .push_maybe(match (&article.author, &article.source.name) {
                                 (Some(author), Some(source)) => {
@@ -141,7 +159,11 @@ pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element
         .width(Length::Fill)
         .max_width(1500)
         .style(|theme| container::Style {
-            background: Some(Background::Color(theme.palette().background)),
+            background: Some(Background::Gradient(Gradient::Linear(
+                iced::gradient::Linear::new(FRAC_PI_4)
+                    .add_stop(0.0, Color::from_rgb(1.0, 1.0, 1.0))
+                    .add_stop(1.0, Color::from_rgb(0.95, 0.95, 1.0)),
+            ))),
             text_color: Some(theme.palette().text),
             border: Border::default()
                 .color(theme.palette().primary)

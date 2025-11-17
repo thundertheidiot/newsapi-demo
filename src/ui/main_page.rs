@@ -10,9 +10,11 @@ use crate::ui::article::article_to_card;
 use crate::ui::article::article_view;
 use crate::ui::article::get_image_from_url;
 use crate::ui::source::source_toggle;
+use crate::ui::style::CLOSE_ICON;
 use crate::ui::style::LIST_ICON;
 use crate::ui::style::SEARCH_ICON;
 use crate::ui::style::button_style;
+use crate::ui::style::close_button_style;
 use crate::ui::style::text_input_style;
 use crate::ui::token_page::TokenPage;
 use iced::Alignment;
@@ -239,13 +241,25 @@ fn source_page<'a>(
                 container(
                     mouse_area(
                         container(column![
-                            text_input("Filter sources", source_filter)
-                                .style(text_input_style)
-                                .width(Length::Fill)
-                                .size(24)
-                                .on_input(|s| M(SourceFilterOnInput(s)))
-                                .on_submit(M(ToggleSourcePage))
-                                .id(SOURCE_FILTER_ID),
+                            row![
+                                text_input("Filter sources", source_filter)
+                                    .style(text_input_style)
+                                    .width(Length::FillPortion(19))
+                                    .size(24)
+                                    .on_input(|s| M(SourceFilterOnInput(s)))
+                                    .on_submit(M(ToggleSourcePage))
+                                    .id(SOURCE_FILTER_ID),
+                                button(
+                                    svg(svg::Handle::from_memory(CLOSE_ICON)).height(Length::Fill)
+                                )
+                                .width(Length::FillPortion(1))
+                                .height(Length::Fill)
+                                .style(close_button_style)
+                                .on_press(M(ToggleSourcePage)),
+                            ]
+                            .height(48)
+                            .padding(5)
+                            .spacing(5),
                             horizontal_rule(6),
                             {
                                 // basic filter, this does mean only lowercase works
@@ -347,7 +361,7 @@ impl Page for MainPage {
         if article_chunks < 1 {
             article_chunks = 1;
         }
-        let mut source_chunks = (w / 500.0).floor() as usize;
+        let mut source_chunks = (w / 300.0).floor() as usize;
         if source_chunks < 1 {
             source_chunks = 1;
         }
@@ -479,8 +493,9 @@ impl Page for MainPage {
                 }
                 ImageLoaded(data) => {
                     if let Some((i, handle)) = data {
-                        // images_loaded is resized to article amount above, this should be safe
-                        self.images_loaded[i] = Some(handle);
+                        if i < self.images_loaded.len() {
+                            self.images_loaded[i] = Some(handle);
+                        }
                     }
                 }
                 ActiveArticle(index) => {

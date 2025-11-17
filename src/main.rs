@@ -19,7 +19,9 @@ fn main() -> iced::Result {
             size: Size::new(DEFAULT_SIZE.0, DEFAULT_SIZE.1),
             ..Default::default()
         })
-        .font(include_bytes!("../assets/Roboto-Regular.ttf"))
+        .font(include_bytes!(
+            "../assets/Roboto-VariableFont_wdth,wght.ttf"
+        ))
         .default_font(iced::Font::with_name("Roboto"))
         .run_with(App::new)
 }

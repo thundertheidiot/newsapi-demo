@@ -10,6 +10,7 @@ use crate::ui::style::text_input_style;
 use iced::Alignment;
 use iced::Background;
 use iced::Border;
+use iced::Gradient;
 use iced::Theme;
 use iced::color;
 use iced::widget::Column;
@@ -23,6 +24,7 @@ use iced::widget::text_input;
 use iced::widget::{column, container, mouse_area, row, text, toggler, tooltip};
 use iced::{Color, Element, Length};
 use std::collections::HashMap;
+use std::f32::consts::FRAC_PI_4;
 
 /// Build a UI element for a Source: displays name, URL and a description tooltip, with a toggle control.
 ///
@@ -162,7 +164,11 @@ pub fn source_page<'a>(
                         .padding([10, 10]) // top/bottom, left/right
                         .width(Length::Fill)
                         .style(|theme| container::Style {
-                            background: Some(Background::Color(theme.palette().background)),
+                            background: Some(Background::Gradient(Gradient::Linear(
+                                iced::gradient::Linear::new(FRAC_PI_4)
+                                    .add_stop(0.0, Color::from_rgb(1.0, 1.0, 1.0))
+                                    .add_stop(1.0, Color::from_rgb(0.95, 0.95, 1.0)),
+                            ))),
                             text_color: Some(theme.palette().text),
                             border: Border::default()
                                 .color(theme.palette().primary)

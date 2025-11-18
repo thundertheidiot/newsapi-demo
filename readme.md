@@ -52,11 +52,12 @@ The sources button on the top right opens the sources menu, where you can toggle
 
 You can filter the sources using the text input box at the top of the source input menu.
 
-![Detailed article view](/readme/article.png)
+![Source page](/readme/source_filtering.png)
+
 
 Clicking on any of the article cards opens a more detailed view of the article. You can click the button at the bottom to open the full article.
 
-Right clicking on any of the sub menus will close the menu.
+![Detailed article view](/readme/article.png)
 
 ## About
 

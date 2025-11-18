@@ -54,12 +54,12 @@ impl Page for TokenPage {
                 .on_submit(T(Submit))
                 .id(TOKEN_INPUT_ID)
                 .style(text_input_style)
-                .width(Length::FillPortion(19))
+                .width(Length::Fill)
                 .size(24),
             button(svg(Handle::from_memory(SUBMIT_ICON)))
                 .on_press(T(Submit))
                 .padding(10)
-                .width(Length::FillPortion(1))
+                .width(48)
                 .height(Length::Fill)
                 .style(button_style),
         ]

@@ -1,3 +1,5 @@
+use crate::newsapi::NewsAPIArticlesSuccess;
+use crate::ui::main_page::error_element;
 use crate::ui::style::no_image;
 use chrono::DateTime;
 use chrono::Local;
@@ -11,6 +13,7 @@ use iced::advanced::image::Bytes;
 use iced::mouse;
 use iced::widget::Column;
 use iced::widget::Image;
+use iced::widget::Row;
 use iced::widget::Space;
 use iced::widget::button;
 use iced::widget::horizontal_rule;
@@ -36,8 +39,45 @@ use crate::ui::style::card_style;
 use crate::ui::style::close_button_style;
 use iced::widget::Button;
 use iced::widget::text;
+use iced::{Alignment, Length, Theme};
 use iced::{Element, widget::container};
-use iced::{Length, Theme};
+
+pub fn article_page<'a>(
+    active_article: Option<&'a usize>,
+    search_result: Option<&'a Result<NewsAPIArticlesSuccess, String>>,
+    images_loaded: &'a [Option<Handle>],
+) -> Option<Element<'a, Message>> {
+    use MainPageMessage::*;
+    use Message::MainPage as M;
+
+    match (active_article, search_result) {
+        (Some(index), Some(Ok(data))) => Some::<Element<'a, Message>>(
+            mouse_area(
+                container(article_view(
+                    &data.articles[*index],
+                    images_loaded[*index].as_ref(),
+                ))
+                .padding(20)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .center(Length::Fill)
+                .align_x(Alignment::Center)
+                .align_y(Alignment::Center)
+                .style(|_theme| container::Style {
+                    background: None,
+                    ..Default::default()
+                }),
+            )
+            .interaction(iced::mouse::Interaction::Idle)
+            .on_right_press(M(ActiveArticle(None)))
+            .on_press(M(ActiveArticle(None)))
+            .into(),
+        ),
+        // TODO error handling here
+        // though it should be impossible to reach another state
+        _ => None,
+    }
+}
 
 pub fn article_to_card<'a>(
     index: usize,
@@ -74,6 +114,47 @@ pub fn article_to_card<'a>(
     .height(300)
     .style(card_style)
     .into()
+}
+
+/// List of article cards
+/// If `search_result` is Some(Ok(data)), the cards will be shown
+/// If `search_result` is Some(Err(e)), an error will be shown
+/// If `search_result` is None (at the start of the program), nothing will be shown
+pub fn article_cards<'a>(
+    search_result: Option<&'a Result<NewsAPIArticlesSuccess, String>>,
+    article_chunks: usize,
+    images_loaded: &'a [Option<Handle>],
+) -> Option<Element<'a, Message>> {
+    match search_result {
+        Some(Ok(data)) => Some::<Element<'a, Message>>(
+            scrollable(
+                Column::with_children(
+                    data.articles
+                        .iter()
+                        .enumerate()
+                        .collect::<Vec<(usize, &Article)>>()
+                        .chunks(article_chunks)
+                        .map(|chunk| {
+                            Into::<Element<'_, Message>>::into(
+                                Row::with_children(chunk.iter().map(|(i, a)| {
+                                    article_to_card(*i, a, images_loaded[*i].as_ref())
+                                }))
+                                .spacing(10)
+                                .align_y(Alignment::Center),
+                            )
+                        }),
+                )
+                .spacing(5)
+                .padding(5),
+            )
+            .spacing(5)
+            .height(Length::Fill)
+            .width(Length::Fill)
+            .into(),
+        ),
+        Some(Err(error)) => Some(error_element(error)),
+        None => None,
+    }
 }
 
 pub fn article_view<'a>(article: &'a Article, image: Option<&Handle>) -> Element<'a, Message> {

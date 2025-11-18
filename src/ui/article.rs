@@ -50,32 +50,37 @@ pub fn article_page<'a>(
     use MainPageMessage::*;
     use Message::MainPage as M;
 
-    match (active_article, search_result) {
-        (Some(index), Some(Ok(data))) => Some::<Element<'a, Message>>(
-            mouse_area(
-                container(article_view(
-                    &data.articles[*index],
-                    images_loaded[*index].as_ref(),
-                ))
-                .padding(20)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .center(Length::Fill)
-                .align_x(Alignment::Center)
-                .align_y(Alignment::Center)
-                .style(|_theme| container::Style {
-                    background: None,
-                    ..Default::default()
-                }),
-            )
-            .interaction(iced::mouse::Interaction::Idle)
-            .on_right_press(M(ActiveArticle(None)))
-            .on_press(M(ActiveArticle(None)))
-            .into(),
-        ),
-        // TODO error handling here
-        // though it should be impossible to reach another state
-        _ => None,
+    if let Some(index) = active_article {
+        match search_result {
+            Some(inner) => Some::<Element<'a, Message>>(
+                mouse_area(
+                    container(match inner {
+                        Ok(data) => {
+                            article_view(&data.articles[*index], images_loaded[*index].as_ref())
+                        }
+                        // this should be impossible to reach under any conditions
+                        Err(error) => error_element(error),
+                    })
+                    .padding(20)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .center(Length::Fill)
+                    .align_x(Alignment::Center)
+                    .align_y(Alignment::Center)
+                    .style(|_theme| container::Style {
+                        background: None,
+                        ..Default::default()
+                    }),
+                )
+                .interaction(iced::mouse::Interaction::Idle)
+                .on_right_press(M(ActiveArticle(None)))
+                .on_press(M(ActiveArticle(None)))
+                .into(),
+            ),
+            None => None,
+        }
+    } else {
+        None
     }
 }
 

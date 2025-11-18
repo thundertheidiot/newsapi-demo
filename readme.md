@@ -8,26 +8,33 @@ Basic news feed application using [NewsAPI.org](https://newsapi.org).
 - Search for articles
 - Easily filter news by source
 
-## Setup
+## Quick start
 
-This is a rust project, cargo is required for building. [Rustup](https://rustup.rs/) is the recommended way to install the rust components.
-
-On Linux you need Wayland or X11 libraries installed, depending on your environment. Native Rustls is used instead of OpenSSL. Windows compatibility is untested.
-
-After acquiring cargo, simply:
+1. Set up cargo and the rust toolchain with [Rustup](https://rustup.rs).
+2. Clone the repository
+3. Run:
 ```bash
 cargo run --release
 ```
 
-There is also a [nix](https://nixos.org) flake that bundles all of the dependencies, you can `nix run` if you have nix installed.
+## Setup
+
+This is a rust project, cargo is used as the build tool. 
+
+On Linux, Iced (the gui toolkit) requires system wayland or x11 libraries depending on your environment. 
+
+There shouldn't be any extra setup required on windows, I made sure to use cross platform solutions like using native rustls with reqwest instead of openssl. Despite this, Windows support is untested, because I do not own a machine running Windows, same goes for MacOS.
+
+There is a [nix](https://nixos.org) flake, that provides a package and a developement shell, that bundle all of the dependencies. You can easily run the application through `nix run`, if you have nix installed.
+`nix develop` will drop you into a developement shell with all the dependencies.
 
 ## Usage
 
-Input your NewsAPI token in the input box. Alternatively set the `NEWS_API_TOKEN` environment variable, which is automatically read on startup.
+Paste your NewsAPI token in the input box. Alternatively set the `NEWS_API_TOKEN` environment variable, which is automatically read on startup.
 
 ![Token input page](/readme/token.png)
 
-The next page automatically loads the top headlines of the day. 
+The main page automatically loads the top headlines of the day. 
 
 ![Main page](/readme/main.png)
 
@@ -51,6 +58,8 @@ Clicking on any of the article cards opens a more detailed view of the article. 
 
 Right clicking on any of the sub menus will close the menu.
 
-## About the project
+## About
 
-I picked [Iced](https://iced.rs) as the GUI library, because it was the only rust gui library I had heard about before, and I wanted to learn one.
+This project was made to fulfill a preliminary task for a job internship application, but I also used this as a learning opportunity. Using reqwest for a rest api was already a familiar task, but I hadn't really made a proper GUI before.
+
+I picked [Iced](https://iced.rs) as the GUI library, because it was the only Rust GUI library I had heard about before, and I wanted to learn one.

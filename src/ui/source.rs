@@ -24,6 +24,16 @@ use iced::widget::{column, container, mouse_area, row, text, toggler, tooltip};
 use iced::{Color, Element, Length};
 use std::collections::HashMap;
 
+/// Build a UI element for a Source: displays name, URL and a description tooltip, with a toggle control.
+///
+/// Parameters:
+/// - `source`: source data (id, name, url, description) used for display and in emitted messages.
+/// - `is_enabled`: current enabled state (controls the toggler's state).
+///
+/// Returns:
+/// - `Element<'_, Message>` — a row with the source name and a toggler; clicking the name or toggler sends
+///   `Message::MainPage(MainPageMessage::SourceToggled(source.id.clone(), new_state))`, and clicking the URL
+///   sends `Message::OpenLink(source.url.clone())`. A tooltip with `source.description` is shown below.
 pub fn source_toggle(source: &Source, is_enabled: bool) -> Element<'_, Message> {
     tooltip(
         column![
@@ -63,7 +73,18 @@ pub fn source_toggle(source: &Source, is_enabled: bool) -> Element<'_, Message> 
     .into()
 }
 
-/// Source filtering menu
+/// Render the source selection menu when `source_page` is true.
+///
+/// Parameters:
+/// - `source_page`: whether the source page should be shown. If false, returns None.
+/// - `source_data`: source list or an error; when Some(Ok(data)) builds the selectable source list, when Some(Err(e)) returns an error element, when None returns None.
+/// - `enabled_sources`: map of source.id -> enabled state (used to set each toggle; missing keys are treated as false).
+/// - `source_chunks`: number of source items per row when laying out the list.
+/// - `source_filter`: filter text applied to source name/description/id; the code matches the filter against a lowercased haystack, so provide a lowercased filter for expected results.
+///
+/// Returns:
+/// - `Some(Element<'a, Message>)` when `source_page` is true and `source_data` is Some(...): a page with a filter input and toggles (or an error text).
+/// - `None` when `source_page` is false or `source_data` is None.
 pub fn source_page<'a>(
     source_page: bool,
     source_data: Option<&'a Result<NewsAPISourcesSuccess, String>>,

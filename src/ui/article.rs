@@ -42,6 +42,19 @@ use iced::widget::text;
 use iced::{Alignment, Length, Theme};
 use iced::{Element, widget::container};
 
+/// Render a full-page view for the currently active article, if any.
+///
+/// Parameters:
+/// - `active_article`: index of the active article to show. If None, no page is rendered.
+/// - `search_result`: the fetched search result; used to get the article data. If None, no page is rendered.
+/// - `images_loaded`: slice of optional image handles; the handle at the same index as `active_article` is used for the article.
+///
+/// Returns:
+/// - `Some(Element<'a, Message>)` when `active_article` and `search_result` are present (renders the article or an error element).
+/// - `None` otherwise.
+///
+/// Expectations:
+/// - If `active_article` is Some(index) and `search_result` is Some(Ok(data)), then `index < data.articles.len()` and `index < images_loaded.len()` must hold.
 pub fn article_page<'a>(
     active_article: Option<&'a usize>,
     search_result: Option<&'a Result<NewsAPIArticlesSuccess, String>>,
@@ -59,6 +72,7 @@ pub fn article_page<'a>(
                             article_view(&data.articles[*index], images_loaded[*index].as_ref())
                         }
                         // this should be impossible to reach under any conditions
+                        // the index is only set if you click on an article card, which depends on the same search_result
                         Err(error) => error_element(error),
                     })
                     .padding(20)
@@ -84,6 +98,20 @@ pub fn article_page<'a>(
     }
 }
 
+/// Build a clickable card Element for an article (title + optional image).
+///
+/// Parameters:
+/// - `index`: index of this article (used in the on-press message).
+/// - `article`: article data (title shown).
+/// - `image`: optional image handle to display; when None a fallback is used.
+///
+/// Returns:
+/// - `Element<'a, Message>` — a Button-styled card that, when pressed, sends
+///   `Message::MainPage(MainPageMessage::ActiveArticle(Some(index)))`.
+///
+/// Expectations / invariants:
+/// - `index` should correctly identify this article in the surrounding context (caller-side indexing).
+/// - `article` must be valid for the returned Element's lifetime; the function does not clone or own article data.
 pub fn article_to_card<'a>(
     index: usize,
     article: &'a Article,
@@ -121,10 +149,20 @@ pub fn article_to_card<'a>(
     .into()
 }
 
-/// List of article cards
-/// If `search_result` is Some(Ok(data)), the cards will be shown
-/// If `search_result` is Some(Err(e)), an error will be shown
-/// If `search_result` is None (at the start of the program), nothing will be shown
+/// Build a scrollable collection of article cards (arranged in rows) using `article_to_card`.
+///
+/// Parameters:
+/// - `search_result`: Option<&Result<NewsAPIArticlesSuccess, String>> — if Some(Ok(data)) builds cards from `data.articles`; if Some(Err(e)) returns an error element; if None returns None.
+/// - `article_chunks`: usize — number of cards per row (must be > 0).
+/// - `images_loaded`: &'a [Option<Handle>] — image handles; the handle at each article's index is used if present.
+///
+/// Returns:
+/// - `Some(Element<'a, Message>)` when `search_result` is Some(...): a scrollable view of cards or an error element.
+/// - `None` when `search_result` is None.
+///
+/// Expectations / invariants:
+/// - `article_chunks > 0`.
+/// - If `search_result` is Some(Ok(data)), callers must ensure `images_loaded.len() >= data.articles.len()` and indices used are valid.
 pub fn article_cards<'a>(
     search_result: Option<&'a Result<NewsAPIArticlesSuccess, String>>,
     article_chunks: usize,
@@ -162,6 +200,14 @@ pub fn article_cards<'a>(
     }
 }
 
+/// Create a full-page UI Element displaying a single article.
+///
+/// Parameters:
+/// - `article`: &Article — article data to render (title, author/source, published timestamp, description, content, url).
+/// - `image`: Option<&Handle> — optional image handle to display above the article; when None a fallback is shown.
+///
+/// Returns:
+/// - `Element<'a, Message>` — a scrollable, styled article view containing title, image, metadata, body text and a "Read full article" button when a URL is present. Interaction callbacks are attached to close or interact with the view.
 pub fn article_view<'a>(article: &'a Article, image: Option<&Handle>) -> Element<'a, Message> {
     mouse_area(
         container(
@@ -265,6 +311,7 @@ fn tmpdir() -> PathBuf {
     temp_dir().join("newsapi_demo")
 }
 
+/// Generate a predictable file path for an image url
 fn url_to_path(url: &str) -> PathBuf {
     let mut hasher = Sha256::new();
     hasher.update(url);
@@ -274,6 +321,23 @@ fn url_to_path(url: &str) -> PathBuf {
     tmpdir().join(hex)
 }
 
+/// Fetch image data for `url`, using a local cache when available.
+///
+/// Attempts to read a cached file (path from `url_to_path`). If missing, downloads
+/// the image with `reqwest::get`, returns the bytes, and spawns a background task
+/// to write the downloaded bytes to the cache. The image bytes are validated via
+/// `image::guess_format` before being returned.
+///
+/// Parameters:
+/// - `url`: the image URL to fetch.
+///
+/// Returns:
+/// - `Ok(Bytes)` with the image data (validated).
+/// - `Err(NewsAPIError)` on I/O, HTTP, or image-format validation errors.
+///
+/// Notes:
+/// - Cache directory creation and file-write errors are handled; write failures are
+///   logged from the background task and do not prevent returning the downloaded bytes.
 pub async fn get_image_from_url(url: &str) -> Result<Bytes, NewsAPIError> {
     match create_dir(tmpdir()) {
         Ok(()) => (),

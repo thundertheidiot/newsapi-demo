@@ -96,9 +96,10 @@ impl Page for TokenPage {
                                 // begin fetching the top headlines
                                 Task::perform(
                                     async move {
-                                        fetch_top(&search_client, None)
-                                            .await
-                                            .map_err(|e| e.to_string())
+                                        fetch_top(&search_client, None).await.map_err(|e| {
+                                            eprintln!("{e:#?}");
+                                            e.to_string()
+                                        })
                                     },
                                     |v| {
                                         Message::MainPage(
@@ -111,9 +112,10 @@ impl Page for TokenPage {
                                 // begin fetching sources
                                 Task::perform(
                                     async move {
-                                        fetch_sources(&source_client)
-                                            .await
-                                            .map_err(|e| e.to_string())
+                                        fetch_sources(&source_client).await.map_err(|e| {
+                                            eprintln!("{e:#?}");
+                                            e.to_string()
+                                        })
                                     },
                                     |v| {
                                         Message::MainPage(

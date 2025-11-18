@@ -14,6 +14,7 @@ mod source;
 mod style;
 mod token_page;
 
+/// Common interface for a UI page in the application.
 pub trait Page {
     fn update(&mut self, message: Message) -> Action;
     fn view(&self, size: (f32, f32)) -> Element<'_, Message>;

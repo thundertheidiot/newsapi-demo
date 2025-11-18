@@ -3,10 +3,8 @@ use crate::ui::main_page::MainPageMessage;
 use crate::ui::token_page::TokenPage;
 use crate::ui::token_page::TokenPageMessage;
 use iced::Element;
-use iced::Event;
 use iced::Subscription;
 use iced::Task;
-use iced::event;
 use iced::keyboard::key::Named;
 use iced::widget::text_input::focus;
 

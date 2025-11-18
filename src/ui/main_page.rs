@@ -20,12 +20,9 @@ use crate::ui::token_page::TokenPage;
 use iced::Alignment;
 use iced::Background;
 use iced::Border;
-use iced::Color;
-use iced::Event;
 use iced::Theme;
 use iced::color;
 use iced::widget::Row;
-use iced::widget::Space;
 use iced::widget::Stack;
 use iced::widget::container;
 use iced::widget::horizontal_rule;
@@ -82,7 +79,7 @@ pub enum MainPageMessage {
 
 pub const SOURCE_FILTER_ID: &str = "source_filter_input";
 
-fn error_element<'a>(error: &'a str) -> Element<'a, Message> {
+fn error_element(error: &str) -> Element<'_, Message> {
     container(column![
         text(error).color(color!(0xff0000)).size(32),
         button("Back to API key page")
@@ -94,7 +91,7 @@ fn error_element<'a>(error: &'a str) -> Element<'a, Message> {
 }
 
 /// Top bar containing the search bar and buttons
-fn top_bar<'a>(search_query: &'a String, n_sources: usize) -> Element<'a, Message> {
+fn top_bar(search_query: &str, n_sources: usize) -> Element<'_, Message> {
     use MainPageMessage::*;
     use Message::MainPage as M;
 
@@ -148,9 +145,9 @@ fn top_bar<'a>(search_query: &'a String, n_sources: usize) -> Element<'a, Messag
 /// If `search_result` is Some(Err(e)), an error will be shown
 /// If `search_result` is None (at the start of the program), nothing will be shown
 fn article_cards<'a>(
-    search_result: &'a Option<Result<NewsAPIArticlesSuccess, String>>,
+    search_result: Option<&'a Result<NewsAPIArticlesSuccess, String>>,
     article_chunks: usize,
-    images_loaded: &'a Vec<Option<Handle>>,
+    images_loaded: &'a [Option<Handle>],
 ) -> Option<Element<'a, Message>> {
     match search_result {
         Some(Ok(data)) => Some::<Element<'a, Message>>(
@@ -163,11 +160,9 @@ fn article_cards<'a>(
                         .chunks(article_chunks)
                         .map(|chunk| {
                             Into::<Element<'_, Message>>::into(
-                                Row::with_children(
-                                    chunk
-                                        .iter()
-                                        .map(|(i, a)| article_to_card(*i, a, &images_loaded[*i])),
-                                )
+                                Row::with_children(chunk.iter().map(|(i, a)| {
+                                    article_to_card(*i, a, images_loaded[*i].as_ref())
+                                }))
                                 .spacing(10)
                                 .align_y(Alignment::Center),
                             )
@@ -187,9 +182,9 @@ fn article_cards<'a>(
 }
 
 fn article_page<'a>(
-    active_article: &'a Option<usize>,
-    search_result: &'a Option<Result<NewsAPIArticlesSuccess, String>>,
-    images_loaded: &'a Vec<Option<Handle>>,
+    active_article: Option<&'a usize>,
+    search_result: Option<&'a Result<NewsAPIArticlesSuccess, String>>,
+    images_loaded: &'a [Option<Handle>],
 ) -> Option<Element<'a, Message>> {
     use MainPageMessage::*;
     use Message::MainPage as M;
@@ -197,17 +192,20 @@ fn article_page<'a>(
     match (active_article, search_result) {
         (Some(index), Some(Ok(data))) => Some::<Element<'a, Message>>(
             mouse_area(
-                container(article_view(&data.articles[*index], &images_loaded[*index]))
-                    .padding(20)
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .center(Length::Fill)
-                    .align_x(Alignment::Center)
-                    .align_y(Alignment::Center)
-                    .style(|_theme| container::Style {
-                        background: None,
-                        ..Default::default()
-                    }),
+                container(article_view(
+                    &data.articles[*index],
+                    images_loaded[*index].as_ref(),
+                ))
+                .padding(20)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .center(Length::Fill)
+                .align_x(Alignment::Center)
+                .align_y(Alignment::Center)
+                .style(|_theme| container::Style {
+                    background: None,
+                    ..Default::default()
+                }),
             )
             .interaction(iced::mouse::Interaction::Idle)
             .on_right_press(M(ActiveArticle(None)))
@@ -223,10 +221,10 @@ fn article_page<'a>(
 /// Source filtering menu
 fn source_page<'a>(
     source_page: bool,
-    source_data: &'a Option<Result<NewsAPISourcesSuccess, String>>,
+    source_data: Option<&'a Result<NewsAPISourcesSuccess, String>>,
     enabled_sources: &'a HashMap<String, bool>,
     source_chunks: usize,
-    source_filter: &'a String,
+    source_filter: &'a str,
 ) -> Option<Element<'a, Message>> {
     use MainPageMessage::*;
     use Message::MainPage as M;
@@ -283,7 +281,7 @@ fn source_page<'a>(
                                                 Row::with_children(chunk.iter().map(|source| {
                                                     source_toggle(
                                                         source,
-                                                        enabled_sources
+                                                        *enabled_sources
                                                             .get(&source.id)
                                                             .unwrap_or(&false),
                                                     )
@@ -331,9 +329,9 @@ fn source_page<'a>(
 }
 
 impl MainPage {
-    pub fn new(token: String) -> Result<Self, NewsAPIError> {
+    pub fn new(token: &str) -> Result<Self, NewsAPIError> {
         let mut headers = HeaderMap::new();
-        headers.insert("X-Api-Key", HeaderValue::from_str(&token)?);
+        headers.insert("X-Api-Key", HeaderValue::from_str(token)?);
 
         let client = reqwest::ClientBuilder::new()
             .user_agent("NewsAPI Demo Application")
@@ -357,14 +355,18 @@ impl MainPage {
 impl Page for MainPage {
     fn view(&self, size: (f32, f32)) -> Element<'_, Message> {
         let w = size.0;
-        let mut article_chunks = (w / 400.0).floor() as usize;
-        if article_chunks < 1 {
-            article_chunks = 1;
+        let mut article_chunks = (w / 400.0).floor();
+        if article_chunks < 1.0 {
+            article_chunks = 1.0;
         }
-        let mut source_chunks = (w / 300.0).floor() as usize;
-        if source_chunks < 1 {
-            source_chunks = 1;
+
+        let mut source_chunks = (w / 300.0).floor();
+        if source_chunks < 1.0 {
+            source_chunks = 1.0;
         }
+
+        let article_chunks = article_chunks as usize;
+        let source_chunks = source_chunks as usize;
 
         Stack::with_capacity(3) // allocate max
             // bottom layer
@@ -376,21 +378,21 @@ impl Page for MainPage {
                         self.enabled_sources.values().filter(|v| **v).count(),
                     ))
                     .push_maybe(article_cards(
-                        &self.search_result,
+                        self.search_result.as_ref(),
                         article_chunks,
                         &self.images_loaded,
                     )),
             )
             // detailed article page
             .push_maybe(article_page(
-                &self.active_article,
-                &self.search_result,
+                self.active_article.as_ref(),
+                self.search_result.as_ref(),
                 &self.images_loaded,
             ))
             // detailed source page
             .push_maybe(source_page(
                 self.source_page,
-                &self.source_data,
+                self.source_data.as_ref(),
                 &self.enabled_sources,
                 source_chunks,
                 &self.source_filter,
@@ -463,7 +465,7 @@ impl Page for MainPage {
                         self.enabled_sources.clear();
 
                         for s in &data.sources {
-                            self.enabled_sources.insert(s.id.to_owned(), false);
+                            self.enabled_sources.insert(s.id.clone(), false);
                         }
                     }
 
@@ -486,16 +488,16 @@ impl Page for MainPage {
                     self.source_page = !self.source_page;
                     if self.source_page {
                         return Action::Task(focus(SOURCE_FILTER_ID));
-                    } else {
-                        self.source_filter = String::new();
-                        return Action::Task(focus(SEARCH_BAR_ID));
                     }
+
+                    self.source_filter = String::new();
+                    return Action::Task(focus(SEARCH_BAR_ID));
                 }
                 ImageLoaded(data) => {
-                    if let Some((i, handle)) = data {
-                        if i < self.images_loaded.len() {
-                            self.images_loaded[i] = Some(handle);
-                        }
+                    if let Some((i, handle)) = data
+                        && i < self.images_loaded.len()
+                    {
+                        self.images_loaded[i] = Some(handle);
                     }
                 }
                 ActiveArticle(index) => {
@@ -516,7 +518,7 @@ fn image_task(input: (usize, &Article)) -> Task<Message> {
 
     match &article.url_to_image {
         Some(url) => {
-            let url = url.to_owned();
+            let url = url.clone();
 
             Task::perform(
                 async move {

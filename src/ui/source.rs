@@ -9,19 +9,19 @@ use iced::widget::text::Shaping::Advanced;
 use iced::widget::{column, container, mouse_area, row, text, toggler, tooltip};
 use iced::{Color, Element, Length};
 
-pub fn source_toggle<'a>(source: &'a Source, is_enabled: &bool) -> Element<'a, Message> {
+pub fn source_toggle(source: &Source, is_enabled: bool) -> Element<'_, Message> {
     tooltip(
         column![
             row![
                 mouse_area(text(&source.name).size(24))
                     .on_press(Message::MainPage(MainPageMessage::SourceToggled(
-                        source.id.to_owned(),
-                        !*is_enabled
+                        source.id.clone(),
+                        !is_enabled
                     )))
                     .interaction(iced::mouse::Interaction::Pointer),
-                toggler(*is_enabled)
+                toggler(is_enabled)
                     .on_toggle(|state| Message::MainPage(MainPageMessage::SourceToggled(
-                        source.id.to_owned(), // :(
+                        source.id.clone(), // :(
                         state
                     )))
                     .size(24)

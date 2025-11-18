@@ -17,7 +17,6 @@ use crate::ui::main_page::MainPage;
 use crate::ui::style::button_style;
 use iced::Element;
 use iced::Task;
-use iced::futures::task;
 use iced::widget::Space;
 use iced::widget::button;
 use iced::widget::text_input::focus;
@@ -84,7 +83,7 @@ impl Page for TokenPage {
                 OnInput(input) => {
                     self.token = input;
                 }
-                Submit => match MainPage::new(self.token.clone()) {
+                Submit => match MainPage::new(&self.token) {
                     Ok(page) => {
                         // need to pass these into async move blocks, client is a shallow clone
                         let search_client = page.client.clone();

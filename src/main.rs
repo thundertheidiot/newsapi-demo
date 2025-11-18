@@ -1,11 +1,6 @@
 use crate::newsapi::fetch_top;
 use crate::ui::App;
 use iced::Size;
-use reqwest::header::HeaderMap;
-use reqwest::header::HeaderValue;
-
-use crate::newsapi::NewsAPIError;
-use std::env;
 
 mod newsapi;
 mod ui;

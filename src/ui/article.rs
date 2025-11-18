@@ -2,15 +2,11 @@ use crate::ui::style::no_image;
 use chrono::DateTime;
 use chrono::Local;
 use chrono::Utc;
-use iced::Alignment;
 use iced::Background;
 use iced::Border;
 use iced::Color;
-use iced::Font;
 use iced::Gradient;
 use iced::Length::Shrink;
-use iced::Shadow;
-use iced::Vector;
 use iced::advanced::image::Bytes;
 use iced::mouse;
 use iced::widget::Column;
@@ -35,12 +31,10 @@ use crate::newsapi::article::Article;
 use crate::ui::Message;
 use crate::ui::main_page::MainPageMessage;
 use crate::ui::style::CLOSE_ICON;
-use crate::ui::style::NO_IMAGE_ICON;
 use crate::ui::style::button_style;
 use crate::ui::style::card_style;
 use crate::ui::style::close_button_style;
 use iced::widget::Button;
-use iced::widget::button::Status;
 use iced::widget::text;
 use iced::{Element, widget::container};
 use iced::{Length, Theme};
@@ -48,7 +42,7 @@ use iced::{Length, Theme};
 pub fn article_to_card<'a>(
     index: usize,
     article: &'a Article,
-    image: &Option<Handle>,
+    image: Option<&Handle>,
 ) -> Element<'a, Message> {
     let content: Column<'_, Message> = Column::with_capacity(2)
         .push(
@@ -63,7 +57,7 @@ pub fn article_to_card<'a>(
         .push(
             container(match &image {
                 Some(img) => {
-                    Into::<Element<'a, Message>>::into(Image::new(img).width(Length::Fill))
+                    Into::<Element<'a, Message>>::into(Image::new(*img).width(Length::Fill))
                 }
                 None => no_image(),
             })
@@ -82,7 +76,7 @@ pub fn article_to_card<'a>(
     .into()
 }
 
-pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element<'a, Message> {
+pub fn article_view<'a>(article: &'a Article, image: Option<&Handle>) -> Element<'a, Message> {
     mouse_area(
         container(
             Column::<Message, Theme>::with_capacity(3)
@@ -104,7 +98,7 @@ pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element
                             .push(
                                 container(match &image {
                                     Some(img) => Into::<Element<'a, Message>>::into(
-                                        Image::new(img).height(Shrink),
+                                        Image::new(*img).height(Shrink),
                                     ),
                                     None => container(no_image()).height(500).into(),
                                 })
@@ -116,7 +110,7 @@ pub fn article_view<'a>(article: &'a Article, image: &Option<Handle>) -> Element
                                         .size(16)
                                         .shaping(Advanced),
                                 ),
-                                (None, Some(source)) => Some(text(source.to_string()).size(16)),
+                                (None, Some(source)) => Some(text(source.as_str()).size(16)),
                                 _ => None,
                             })
                             .push_maybe(article.published_at.as_ref().map(|t| {
@@ -201,27 +195,26 @@ pub async fn get_image_from_url(url: &str) -> Result<Bytes, NewsAPIError> {
             std::io::ErrorKind::AlreadyExists => (),
             _ => return Err(NewsAPIError::IO(e)),
         },
-    };
+    }
 
     let path = url_to_path(url);
 
-    let bytes = match path.exists() {
-        true => tokio::fs::read(path).await?.into(),
-        false => {
-            let bytes = reqwest::get(url).await?.bytes().await?;
+    let bytes = if path.exists() {
+        tokio::fs::read(path).await?.into()
+    } else {
+        let bytes = reqwest::get(url).await?.bytes().await?;
 
-            // Shallow clone, bytes does not own the data
-            let bytes_clone = bytes.clone();
+        // Shallow clone, bytes does not own the data
+        let bytes_clone = bytes.clone();
 
-            // background task to write to disk
-            tokio::task::spawn(async move {
-                if let Err(e) = tokio::fs::write(path, bytes_clone).await {
-                    eprintln!("Failed to cache image: {e:?}");
-                }
-            });
+        // background task to write to disk
+        tokio::task::spawn(async move {
+            if let Err(e) = tokio::fs::write(path, bytes_clone).await {
+                eprintln!("Failed to cache image: {e:?}");
+            }
+        });
 
-            bytes
-        }
+        bytes
     };
 
     // very simple image data validation

@@ -12,7 +12,7 @@ use thiserror::Error;
 ///
 #[derive(Debug, Error)]
 pub enum NewsAPIError {
-    /// Error returned by NewsAPI, e.g.
+    /// Error returned by `NewsAPI`, e.g.
     #[error("API returned an error: {message} (code {code})")]
     Api {
         /// Error code returned by the API.
@@ -103,8 +103,7 @@ pub async fn fetch_top(
     let request = client.get("https://newsapi.org/v2/top-headlines");
 
     let request = match sources.as_deref() {
-        None => request.query(&[("category", "general")]),
-        Some("") => request.query(&[("category", "general")]),
+        None | Some("") => request.query(&[("category", "general")]),
         Some(s) => request.query(&[("sources", s)]),
     };
 
@@ -124,8 +123,7 @@ pub async fn search_articles(
     let request = client.get("https://newsapi.org/v2/everything");
 
     let request = match sources.as_deref() {
-        None => request.query(&[("q", query)]),
-        Some("") => request.query(&[("q", query)]),
+        None | Some("") => request.query(&[("q", query)]),
         Some(s) => request.query(&[("q", query), ("sources", s)]),
     };
 
